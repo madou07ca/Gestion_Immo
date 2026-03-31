@@ -1,6 +1,6 @@
 # Intégration du site avec Odoo
 
-Ce document décrit comment connecter le site Gestion Locative à Odoo.
+Ce document décrit comment connecter le site Immo-Connect_GN à Odoo.
 
 ## Deux façons d’intégrer
 

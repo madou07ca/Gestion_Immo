@@ -14,7 +14,7 @@ function setMeta(attr, key, content) {
 
 export default function Seo({ title, description, ogImage, ogUrl, ogType = 'website' }) {
   useEffect(() => {
-    const fullTitle = title ? `${title} | Prestige & Gestion Immobilière Conakry` : 'Prestige & Gestion Immobilière à Conakry'
+    const fullTitle = title ? `${title} | Immo-Connect_GN Conakry` : 'Immo-Connect_GN - Immobilier à Conakry'
     document.title = fullTitle
 
     if (description) {

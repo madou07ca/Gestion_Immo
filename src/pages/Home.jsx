@@ -37,7 +37,7 @@ export default function HomePage() {
 
   return (
     <div>
-      <Seo title="Accueil" description="Prestige & Gestion Immobilière à Conakry. Location et gestion locative haut de gamme. Estimation gratuite et confidentielle." />
+      <Seo title="Accueil" description="Immo-Connect_GN - Immobilier à Conakry. Location et gestion locative haut de gamme. Estimation gratuite et confidentielle." />
       {/* Hero */}
       <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
         <div
@@ -54,7 +54,7 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="font-display text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4"
           >
-            Prestige & Gestion Immobilière à Conakry
+            Immo-Connect_GN - Immobilier à Conakry
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}

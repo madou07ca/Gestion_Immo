@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Logo from './Logo'
 
 const navItems = [
   { to: '/', label: 'Accueil' },
@@ -19,10 +20,7 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-night-900/95 backdrop-blur-md border-b border-night-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
-          <Link to="/" className="flex items-center gap-2 text-gold-300 font-display font-semibold text-xl">
-            <span className="text-gold-400">Prestige</span>
-            <span className="text-gray-300">& Gestion</span>
-          </Link>
+          <Logo />
 
           <nav className="hidden md:flex items-center gap-8">
             {navItems.map(({ to, label }) => (

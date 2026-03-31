@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Prestige & Gestion Immobilière Conakry',
-        short_name: 'Gestion Locative',
+        name: 'Immo-Connect_GN Conakry',
+        short_name: 'Immo-Connect_GN',
         description: 'Location et gestion locative haut de gamme à Conakry',
         theme_color: '#0a0e1a',
         background_color: '#0a0e1a',

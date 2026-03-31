@@ -10,7 +10,7 @@ export default function PolitiqueConfidentialite() {
         <h1 className="font-display text-3xl font-bold text-white mb-8">Politique de confidentialité</h1>
         <div className="prose prose-invert max-w-none space-y-6 text-gray-300">
           <p>
-            Prestige & Gestion Immobilière s'engage à protéger la vie privée des utilisateurs de son site. 
+            Immo-Connect_GN s'engage à protéger la vie privée des utilisateurs de son site. 
             Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles.
           </p>
           <section>
@@ -41,7 +41,7 @@ export default function PolitiqueConfidentialite() {
             <h2 className="text-xl font-semibold text-white mt-8 mb-2">4. Vos droits</h2>
             <p>
               Vous disposez d'un droit d'accès, de rectification, d'effacement et d'opposition au traitement 
-              de vos données. Pour exercer ces droits ou pour toute question : contact@prestige-gestion.gn
+              de vos données. Pour exercer ces droits ou pour toute question : contact@immo-connect-gn.gn
             </p>
           </section>
           <section>

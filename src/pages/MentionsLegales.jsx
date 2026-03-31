@@ -12,7 +12,7 @@ export default function MentionsLegales() {
           <section>
             <h2 className="text-xl font-semibold text-white mt-8 mb-2">1. Éditeur du site</h2>
             <p>
-              Le site est édité par Prestige & Gestion Immobilière (ou la raison sociale de votre structure).
+              Le site est édité par Immo-Connect_GN (ou la raison sociale de votre structure).
               Siège : Conakry, Guinée.
             </p>
           </section>
@@ -27,7 +27,7 @@ export default function MentionsLegales() {
             <h2 className="text-xl font-semibold text-white mt-8 mb-2">3. Propriété intellectuelle</h2>
             <p>
               L'ensemble des contenus (textes, images, logos, structure) est protégé par le droit d'auteur 
-              et appartient à Prestige & Gestion Immobilière ou à ses partenaires. Toute reproduction 
+              et appartient à Immo-Connect_GN ou à ses partenaires. Toute reproduction 
               non autorisée est interdite.
             </p>
           </section>
@@ -49,7 +49,7 @@ export default function MentionsLegales() {
           <section>
             <h2 className="text-xl font-semibold text-white mt-8 mb-2">6. Contact</h2>
             <p>
-              Pour toute question relative aux mentions légales : contact@prestige-gestion.gn
+              Pour toute question relative aux mentions légales : contact@immo-connect-gn.gn
             </p>
           </section>
         </div>

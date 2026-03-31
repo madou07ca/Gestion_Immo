@@ -1,4 +1,4 @@
-# Prestige & Gestion Immobilière – Conakry
+# Immo-Connect_GN – Conakry
 
 Site vitrine et PWA de location et gestion locative haut de gamme à Conakry (appartements, maisons, magasins, immeubles, terrains).
 

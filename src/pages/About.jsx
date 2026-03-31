@@ -17,7 +17,7 @@ const commitments = [
 export default function About() {
   return (
     <div>
-      <Seo title="À propos" description="Découvrez Prestige & Gestion Immobilière : histoire, équipe, chiffres clés et engagements à Conakry." />
+      <Seo title="À propos" description="Découvrez Immo-Connect_GN : histoire, équipe, chiffres clés et engagements à Conakry." />
       <section className="relative py-20 md:py-28 overflow-hidden">
         <div
           className="absolute inset-0 parallax-bg bg-night-800"
@@ -54,7 +54,7 @@ export default function About() {
           >
             <h2 className="font-display text-2xl font-bold text-white mb-6">Notre histoire et vision</h2>
             <p className="text-gray-300 leading-relaxed mb-4">
-              Prestige & Gestion Immobilière est née de la volonté d'offrir à Conakry et à la Guinée 
+              Immo-Connect_GN est née de la volonté d'offrir à Conakry et à la Guinée 
               un service immobilier haut de gamme : location de biens d'exception, gestion locative 
               rigoureuse et estimation transparente pour les propriétaires et investisseurs.
             </p>
