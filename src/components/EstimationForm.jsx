@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
+import { getLeadsSubmitUrl, isOdooLeads } from '../config'
 import { propertyTypes } from '../data/properties'
 
 const travauxOptions = [
@@ -11,18 +12,37 @@ const travauxOptions = [
 
 export default function EstimationForm() {
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   const onSubmit = async (data) => {
+    setSubmitError(null)
+    setSubmitting(true)
     try {
-      await fetch('/api/leads/estimation', {
+      const url = getLeadsSubmitUrl('estimation')
+      const body = isOdooLeads ? { type: 'estimation', ...data } : data
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(body),
       })
-      setSent(true)
+      if (res.ok) {
+        setSent(true)
+        return
+      }
+      let msg = 'Envoi impossible. Réessayez plus tard ou contactez-nous par téléphone.'
+      try {
+        const j = await res.json()
+        if (j?.error) msg = j.error
+      } catch {
+        /* ignore */
+      }
+      setSubmitError(msg)
     } catch {
-      setSent(true)
+      setSubmitError('Connexion impossible. Vérifiez votre réseau et réessayez.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -174,11 +194,17 @@ export default function EstimationForm() {
           placeholder="Décrivez brièvement votre bien ou vos attentes..."
         />
       </div>
+      {submitError && (
+        <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2" role="alert">
+          {submitError}
+        </p>
+      )}
       <button
         type="submit"
-        className="w-full py-3 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400 mt-4"
+        disabled={submitting}
+        className="w-full py-3 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400 mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        Demander mon estimation
+        {submitting ? 'Envoi en cours…' : 'Demander mon estimation'}
       </button>
     </form>
   )

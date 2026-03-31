@@ -1,29 +1,37 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
-import HomePage from './pages/Home'
-import Properties from './pages/Properties'
-import PropertyDetail from './pages/PropertyDetail'
-import GestionLocative from './pages/GestionLocative'
-import Estimation from './pages/Estimation'
-import About from './pages/About'
-import MentionsLegales from './pages/MentionsLegales'
-import PolitiqueConfidentialite from './pages/PolitiqueConfidentialite'
+import PageLoader from './components/PageLoader'
+import AppErrorBoundary from './components/AppErrorBoundary'
+
+const HomePage = lazy(() => import('./pages/Home'))
+const Properties = lazy(() => import('./pages/Properties'))
+const PropertyDetail = lazy(() => import('./pages/PropertyDetail'))
+const GestionLocative = lazy(() => import('./pages/GestionLocative'))
+const Estimation = lazy(() => import('./pages/Estimation'))
+const About = lazy(() => import('./pages/About'))
+const MentionsLegales = lazy(() => import('./pages/MentionsLegales'))
+const PolitiqueConfidentialite = lazy(() => import('./pages/PolitiqueConfidentialite'))
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="nos-biens" element={<Properties />} />
-          <Route path="nos-biens/:slug" element={<PropertyDetail />} />
-          <Route path="gestion-locative" element={<GestionLocative />} />
-          <Route path="estimation" element={<Estimation />} />
-          <Route path="a-propos" element={<About />} />
-          <Route path="mentions-legales" element={<MentionsLegales />} />
-          <Route path="politique-confidentialite" element={<PolitiqueConfidentialite />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="nos-biens" element={<Properties />} />
+              <Route path="nos-biens/:slug" element={<PropertyDetail />} />
+              <Route path="gestion-locative" element={<GestionLocative />} />
+              <Route path="estimation" element={<Estimation />} />
+              <Route path="a-propos" element={<About />} />
+              <Route path="mentions-legales" element={<MentionsLegales />} />
+              <Route path="politique-confidentialite" element={<PolitiqueConfidentialite />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </AppErrorBoundary>
   )
 }

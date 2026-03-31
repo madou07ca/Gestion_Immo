@@ -41,10 +41,18 @@ export default function PropertyDetail() {
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
   const shareText = encodeURIComponent(`${property.title} - ${property.priceLabel}`)
+  const ogImage = images[0]
+  const seoDescription = `${property.title} - ${property.priceLabel} - ${property.district}, ${property.city}. ${property.description?.slice(0, 150)}...`
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Seo title={property.title} description={`${property.title} - ${property.priceLabel} - ${property.district}, ${property.city}. ${property.description?.slice(0, 150)}...`} />
+      <Seo
+        title={property.title}
+        description={seoDescription}
+        ogImage={ogImage}
+        ogUrl={shareUrl}
+        ogType="article"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

@@ -1,23 +1,42 @@
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { getLeadsSubmitUrl, isOdooLeads } from '../config'
 import { propertyTypes } from '../data/properties'
 
 export default function QuickEstimationForm() {
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   const onSubmit = async (data) => {
+    setSubmitError(null)
+    setSubmitting(true)
     try {
-      const res = await fetch('/api/leads/estimation-rapide', {
+      const url = getLeadsSubmitUrl('estimation-rapide')
+      const body = isOdooLeads ? { type: 'estimation-rapide', ...data } : data
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(body),
       })
-      if (res.ok) setSent(true)
-      else setSent(true) // en dev sans API on affiche succès quand même
+      if (res.ok) {
+        setSent(true)
+        return
+      }
+      let msg = 'Envoi impossible. Réessayez plus tard ou contactez-nous par téléphone.'
+      try {
+        const j = await res.json()
+        if (j?.error) msg = j.error
+      } catch {
+        /* ignore */
+      }
+      setSubmitError(msg)
     } catch {
-      setSent(true)
+      setSubmitError('Connexion impossible. Vérifiez votre réseau et réessayez.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -97,12 +116,18 @@ export default function QuickEstimationForm() {
           />
         </div>
       </div>
+      {submitError && (
+        <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2" role="alert">
+          {submitError}
+        </p>
+      )}
       <div className="pt-2">
         <button
           type="submit"
-          className="w-full py-3 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400 transition-colors"
+          disabled={submitting}
+          className="w-full py-3 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Demander mon estimation
+          {submitting ? 'Envoi en cours…' : 'Demander mon estimation'}
         </button>
       </div>
     </motion.form>

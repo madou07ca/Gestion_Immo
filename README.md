@@ -55,7 +55,7 @@ Remplacez `VOTRE_UTILISATEUR` et `VOTRE_REPO` par votre compte et le nom du dép
 
 Le site sera en ligne à une URL du type `https://nom-aleatoire.netlify.app`. Vous pourrez définir un nom personnalisé ou un domaine personnalisé dans **Domain settings**.
 
-> **Note** : Netlify héberge uniquement le **frontend** (fichiers statiques). Les formulaires (estimation, contact, etc.) enverront des requêtes vers `/api/...` qui ne fonctionneront pas en production tant que l’API Express n’est pas déployée (par ex. sur [Render](https://render.com), [Railway](https://railway.app) ou en Netlify Functions). En attendant, les visiteurs verront le site et pourront parcourir les biens ; les envois de formulaires échoueront côté réseau.
+> **Note** : Netlify héberge le **frontend**. Pour que les formulaires enregistrent les demandes en production, vous pouvez soit déployer l’API Express ailleurs (Render, Railway), soit **envoyer les leads vers Odoo** via la fonction fournie (voir [INTEGRATION_ODOO.md](INTEGRATION_ODOO.md)).
 
 ## Installation
 

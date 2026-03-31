@@ -1,23 +1,44 @@
 import { useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { getLeadsSubmitUrl, isOdooLeads } from '../config'
 
 export default function PropertyContactForm({ property, onClose }) {
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: { subject: `Demande d'info: ${property?.title}`, propertyId: property?.id },
   })
 
   const onSubmit = async (data) => {
+    setSubmitError(null)
+    setSubmitting(true)
     try {
-      await fetch('/api/leads/contact-bien', {
+      const payload = { ...data, propertyId: property?.id, propertyTitle: property?.title }
+      const url = getLeadsSubmitUrl('contact-bien')
+      const body = isOdooLeads ? { type: 'contact-bien', ...payload } : payload
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, propertyId: property?.id, propertyTitle: property?.title }),
+        body: JSON.stringify(body),
       })
-      setSent(true)
+      if (res.ok) {
+        setSent(true)
+        return
+      }
+      let msg = 'Envoi impossible. Réessayez plus tard ou contactez-nous par téléphone.'
+      try {
+        const j = await res.json()
+        if (j?.error) msg = j.error
+      } catch {
+        /* ignore */
+      }
+      setSubmitError(msg)
     } catch {
-      setSent(true)
+      setSubmitError('Connexion impossible. Vérifiez votre réseau et réessayez.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -85,6 +106,11 @@ export default function PropertyContactForm({ property, onClose }) {
                 placeholder="Souhaitez-vous une visite ? Des précisions sur le bien ?"
               />
             </div>
+            {submitError && (
+              <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2" role="alert">
+                {submitError}
+              </p>
+            )}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -95,9 +121,10 @@ export default function PropertyContactForm({ property, onClose }) {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400"
+                disabled={submitting}
+                className="flex-1 py-2 rounded-lg bg-gold-500 text-night-900 font-semibold hover:bg-gold-400 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Envoyer
+                {submitting ? 'Envoi…' : 'Envoyer'}
               </button>
             </div>
           </form>
