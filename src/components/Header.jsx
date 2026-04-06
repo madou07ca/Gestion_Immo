@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from './Logo'
+import PlatformMenu from './PlatformMenu'
 
 const navItems = [
   { to: '/', label: 'Accueil' },
@@ -22,12 +23,12 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           <Logo />
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8">
             {navItems.map(({ to, label }) => (
               <Link
                 key={to}
                 to={to}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-sm font-medium transition-colors whitespace-nowrap ${
                   location.pathname === to
                     ? 'text-gold-400'
                     : 'text-gray-300 hover:text-gold-300'
@@ -36,6 +37,7 @@ export default function Header() {
                 {label}
               </Link>
             ))}
+            <PlatformMenu />
           </nav>
 
           <button
@@ -72,6 +74,7 @@ export default function Header() {
                   {label}
                 </Link>
               ))}
+              <PlatformMenu mobile onNavigate={() => setMobileOpen(false)} />
             </nav>
           </motion.div>
         )}

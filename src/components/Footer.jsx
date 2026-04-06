@@ -39,10 +39,17 @@ export default function Footer() {
           <div>
             <h4 className="font-medium text-gray-200 mb-4">Navigation</h4>
             <ul className="space-y-2 text-sm">
-              {['/', '/nos-biens', '/gestion-locative', '/estimation', '/a-propos'].map((path) => (
+              {[
+                { path: '/', label: 'Accueil' },
+                { path: '/nos-biens', label: 'Nos Biens' },
+                { path: '/espace', label: 'Plateforme (espaces)' },
+                { path: '/gestion-locative', label: 'Gestion locative' },
+                { path: '/estimation', label: 'Estimation' },
+                { path: '/a-propos', label: 'À propos' },
+              ].map(({ path, label }) => (
                 <li key={path}>
                   <Link to={path} className="text-gray-400 hover:text-gold-400">
-                    {path === '/' ? 'Accueil' : path === '/nos-biens' ? 'Nos Biens' : path === '/gestion-locative' ? 'Gestion locative' : path === '/estimation' ? 'Estimation' : 'À propos'}
+                    {label}
                   </Link>
                 </li>
               ))}

@@ -12,6 +12,11 @@ const Estimation = lazy(() => import('./pages/Estimation'))
 const About = lazy(() => import('./pages/About'))
 const MentionsLegales = lazy(() => import('./pages/MentionsLegales'))
 const PolitiqueConfidentialite = lazy(() => import('./pages/PolitiqueConfidentialite'))
+const EspaceHub = lazy(() => import('./pages/EspaceHub'))
+const EspacePortal = lazy(() => import('./pages/EspacePortal'))
+const PortalShell = lazy(() => import('./pages/portals/PortalShell'))
+const PortalDashboard = lazy(() => import('./pages/portals/PortalDashboard'))
+const PortalSectionPage = lazy(() => import('./pages/portals/PortalSectionPage'))
 
 export default function App() {
   return (
@@ -28,6 +33,12 @@ export default function App() {
               <Route path="a-propos" element={<About />} />
               <Route path="mentions-legales" element={<MentionsLegales />} />
               <Route path="politique-confidentialite" element={<PolitiqueConfidentialite />} />
+              <Route path="espace" element={<EspaceHub />} />
+              <Route path="espace/:slug/app" element={<PortalShell />}>
+                <Route index element={<PortalDashboard />} />
+                <Route path=":section" element={<PortalSectionPage />} />
+              </Route>
+              <Route path="espace/:slug" element={<EspacePortal />} />
             </Route>
           </Routes>
         </Suspense>
