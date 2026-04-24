@@ -2,14 +2,14 @@
 
 export const kpiBySlug = {
   locataire: [
-    { label: 'Prochain loyer', value: '15 j', sub: 'Échéance 5 du mois' },
-    { label: 'Dernier paiement', value: '2,5M GNF', sub: 'Mars 2026 — payé' },
-    { label: 'Demandes ouvertes', value: '1', sub: 'Fuite salle de bain' },
+    { label: 'Prochaine echeance', value: '05/04/2026', sub: 'Loyer + charges a payer' },
+    { label: 'Montant du mois', value: '2 850 000 GNF', sub: 'Loyer 2 500 000 + charges 350 000' },
+    { label: 'Demandes ouvertes', value: '1', sub: 'Incident plomberie en cours' },
   ],
   proprietaire: [
-    { label: 'Revenus ce mois', value: '4,2M GNF', sub: '3 biens loués' },
-    { label: 'Taux d’occupation', value: '92%', sub: 'Sur 4 lots' },
-    { label: 'À reverser', value: '3,8M GNF', sub: 'Virement prévu le 10' },
+    { label: 'Revenus mensuels', value: '4 200 000 GNF', sub: 'Mars 2026' },
+    { label: 'Biens loues', value: '3 / 4', sub: 'Taux d occupation 75%' },
+    { label: 'Paiements en retard', value: '1', sub: 'Action requise' },
   ],
   agence: [
     { label: 'Mandats actifs', value: '28', sub: '12 ventes, 16 locations' },
@@ -25,13 +25,14 @@ export const kpiBySlug = {
 
 export const activityFeed = {
   locataire: [
-    { t: 'Il y a 2 h', msg: 'Votre demande de réparation #142 a été prise en charge.' },
-    { t: 'Hier', msg: 'Quittance de mars disponible en téléchargement.' },
-    { t: '3 j', msg: 'Message de l’agence : visite semestrielle planifiée.' },
+    { t: 'Il y a 1 h', msg: 'Rappel: echeance de paiement le 05/04/2026.' },
+    { t: 'Hier', msg: 'Confirmation paiement Mars 2026 recue et validee.' },
+    { t: '3 j', msg: 'Votre demande #142 (incident) est en cours de traitement.' },
   ],
   proprietaire: [
-    { t: 'Aujourd’hui', msg: 'Encaissement enregistré — Villa Kaloum.' },
-    { t: 'Hier', msg: 'Fin de bail prévue — Appartement Ratoma (90 j).' },
+    { t: "Aujourd'hui", msg: 'Paiement recu pour Villa Kaloum - 2 500 000 GNF.' },
+    { t: 'Hier', msg: 'Retard de paiement detecte sur Appartement Ratoma.' },
+    { t: '3 j', msg: 'Rapport mensuel Mars 2026 disponible en PDF.' },
   ],
   agence: [
     { t: '10 min', msg: 'Nouveau lead site Web — Appartement 3 pièces Dixinn.' },
@@ -45,36 +46,91 @@ export const activityFeed = {
 
 export const tables = {
   locataire: {
-    loyers: [
-      { id: 1, periode: 'Mars 2026', montant: '2 500 000 GNF', statut: 'Payé', quittance: 'PDF' },
-      { id: 2, periode: 'Fév. 2026', montant: '2 500 000 GNF', statut: 'Payé', quittance: 'PDF' },
-      { id: 3, periode: 'Janv. 2026', montant: '2 500 000 GNF', statut: 'Payé', quittance: 'PDF' },
+    bien: {
+      reference: 'B-KLM-APT-03',
+      adresse: 'Kaloum, Conakry - Immeuble Palmier, 3e etage',
+      type: 'Appartement T3',
+      surface: '98 m2',
+      bailDebut: '01/01/2025',
+      bailFin: '31/12/2027',
+      loyerMensuel: '2 500 000 GNF',
+      chargesMensuelles: '350 000 GNF',
+      statutOccupation: 'Occupe',
+    },
+    contrat: {
+      reference: 'CTR-LOC-2025-0018',
+      titulaire: 'M. Mamadou Diallo',
+      proprietaire: 'SCI Kaloum Residence',
+      agence: 'Immo-Connect_GN',
+      dateSignature: '28/12/2024',
+      dateEffet: '01/01/2025',
+      depotGarantie: '2 500 000 GNF',
+      periodicite: 'Mensuelle',
+      echeance: 'Le 05 de chaque mois',
+      modePaiementPrincipal: 'Orange Money',
+      statut: 'Actif',
+    },
+    paiements: [
+      { id: 1, libelle: 'Loyer Avril 2026', type: 'Loyer', echeance: '05/04/2026', montant: 2500000, statut: 'A payer' },
+      { id: 2, libelle: 'Charges Avril 2026', type: 'Charges', echeance: '05/04/2026', montant: 350000, statut: 'A payer' },
+    ],
+    'historique-paiements': [
+      { id: 101, date: '05/03/2026', periode: 'Mars 2026', moyen: 'Orange Money', montant: '2 850 000 GNF', reference: 'OM-903811', statut: 'Confirme' },
+      { id: 102, date: '05/02/2026', periode: 'Fev. 2026', moyen: 'Orange Money', montant: '2 850 000 GNF', reference: 'OM-891245', statut: 'Confirme' },
+      { id: 103, date: '05/01/2026', periode: 'Janv. 2026', moyen: 'Orange Money', montant: '2 850 000 GNF', reference: 'OM-874002', statut: 'Confirme' },
     ],
     demandes: [
-      { id: 142, sujet: 'Fuite salle de bain', date: '28/03/2026', statut: 'En cours', priorite: 'Normale' },
-      { id: 138, sujet: 'Climatisation bruyante', date: '15/03/2026', statut: 'Résolu', priorite: 'Basse' },
+      { id: 142, type: 'Incident', sujet: 'Fuite salle de bain', date: '28/03/2026', statut: 'En cours', priorite: 'Normale' },
+      { id: 138, type: 'Renovation', sujet: 'Climatisation bruyante', date: '15/03/2026', statut: 'Resolue', priorite: 'Basse' },
     ],
     documents: [
-      { nom: 'Bail signé 2025.pdf', type: 'Contrat', date: '01/01/2025' },
-      { nom: 'État des lieux entrée.pdf', type: 'EDL', date: '01/01/2025' },
+      { nom: 'Contrat de bail signe.pdf', type: 'Contrat', date: '01/01/2025', categorie: 'Contrat', taille: '1.2 MB' },
+      { nom: 'Etat des lieux entree.pdf', type: 'EDL', date: '01/01/2025', categorie: 'Documents', taille: '780 KB' },
+      { nom: 'Recu paiement Mars 2026.pdf', type: 'Recu', date: '05/03/2026', categorie: 'Recus', taille: '240 KB' },
+      { nom: 'Recu paiement Fev 2026.pdf', type: 'Recu', date: '05/02/2026', categorie: 'Recus', taille: '236 KB' },
     ],
-    messages: [
-      { de: 'Agence Immo-Connect', apercu: 'Bonjour, nous confirmons la visite du...', date: '30/03/2026', lu: true },
-      { de: 'Gestion technique', apercu: 'Intervention plombier prévue demain 9h.', date: '29/03/2026', lu: false },
+    notifications: [
+      { id: 'N-1', type: 'Rappel de paiement', titre: 'Echeance du loyer approche', message: 'Le paiement du loyer et des charges est attendu au 05/04/2026.', date: '04/04/2026 09:00', statut: 'Non lu', canal: 'In-app + SMS' },
+      { id: 'N-2', type: 'Confirmation paiement', titre: 'Paiement recu', message: 'Votre paiement Orange Money de 2 850 000 GNF a ete confirme.', date: '05/03/2026 10:13', statut: 'Lu', canal: 'In-app + Email' },
     ],
   },
   proprietaire: {
     biens: [
-      { ref: 'V-KLM-01', adresse: 'Kaloum — Villa lagune', loyer: '2,5M', locataire: 'M. Diallo', finBail: '12/2027' },
-      { ref: 'A-RAT-04', adresse: 'Ratoma — T3', loyer: '850K', locataire: 'Mme Bah', finBail: '06/2026' },
+      { ref: 'V-KLM-01', adresse: 'Kaloum - Villa lagune', type: 'Villa', loyer: '2 500 000 GNF', locataire: 'M. Diallo', statut: 'Loue', finBail: '12/2027' },
+      { ref: 'A-RAT-04', adresse: 'Ratoma - Appartement T3', type: 'Appartement', loyer: '850 000 GNF', locataire: 'Mme Bah', statut: 'Retard paiement', finBail: '06/2026' },
+      { ref: 'A-MTM-08', adresse: 'Matam - Appartement T2', type: 'Appartement', loyer: '750 000 GNF', locataire: '-', statut: 'Disponible', finBail: '-' },
+      { ref: 'C-DIX-02', adresse: 'Dixinn - Commerce 120m2', type: 'Local commercial', loyer: '1 200 000 GNF', locataire: 'SARL Horizon', statut: 'Maintenance', finBail: '03/2027' },
     ],
-    encaissements: [
-      { date: '05/03/2026', bien: 'V-KLM-01', montant: '2 500 000', statut: 'Versé' },
-      { date: '05/03/2026', bien: 'A-RAT-04', montant: '850 000', statut: 'Versé' },
+    revenus: [
+      { mois: 'Janv. 2026', brut: '4 050 000 GNF', charges: '320 000 GNF', net: '3 730 000 GNF', statut: 'Cloture' },
+      { mois: 'Fev. 2026', brut: '4 050 000 GNF', charges: '280 000 GNF', net: '3 770 000 GNF', statut: 'Cloture' },
+      { mois: 'Mars 2026', brut: '4 200 000 GNF', charges: '340 000 GNF', net: '3 860 000 GNF', statut: 'Cloture' },
+      { mois: 'Avril 2026', brut: '2 500 000 GNF', charges: '90 000 GNF', net: '2 410 000 GNF', statut: 'Partiel' },
     ],
-    reporting: [],
-    candidatures: [
-      { candidat: 'K. Camara', bien: 'A-DIX-02', date: '27/03/2026', score: '88/100' },
+    'historique-paiements': [
+      { id: 201, date: '05/04/2026', bien: 'V-KLM-01', locataire: 'M. Diallo', montant: '2 500 000 GNF', mode: 'Virement', reference: 'TRX-OP-33421', statut: 'Recu' },
+      { id: 202, date: '06/04/2026', bien: 'C-DIX-02', locataire: 'SARL Horizon', montant: '1 200 000 GNF', mode: 'Virement', reference: 'TRX-OP-33444', statut: 'Recu' },
+      { id: 203, date: '08/04/2026', bien: 'A-RAT-04', locataire: 'Mme Bah', montant: '850 000 GNF', mode: 'Mobile Money', reference: 'TRX-OM-99812', statut: 'Retard' },
+    ],
+    revenusParBien: [
+      { bien: 'V-KLM-01', revenusAnnuels: '30 000 000 GNF', vacance: '0 mois', rendement: '7.8%' },
+      { bien: 'A-RAT-04', revenusAnnuels: '10 200 000 GNF', vacance: '1 mois', rendement: '6.1%' },
+      { bien: 'A-MTM-08', revenusAnnuels: '6 000 000 GNF', vacance: '2 mois', rendement: '4.9%' },
+      { bien: 'C-DIX-02', revenusAnnuels: '14 400 000 GNF', vacance: '0 mois', rendement: '8.4%' },
+    ],
+    documents: [
+      { nom: 'Contrat bail Villa Kaloum.pdf', type: 'Contrat', bien: 'V-KLM-01', date: '12/2025', taille: '1.1 MB' },
+      { nom: 'Recu Avril Villa Kaloum.pdf', type: 'Recu', bien: 'V-KLM-01', date: '04/2026', taille: '210 KB' },
+      { nom: 'Recu Avril Commerce Dixinn.pdf', type: 'Recu', bien: 'C-DIX-02', date: '04/2026', taille: '208 KB' },
+      { nom: 'Rapport mensuel Mars 2026.pdf', type: 'Rapport', bien: 'Portefeuille', date: '03/2026', taille: '960 KB' },
+    ],
+    notifications: [
+      { id: 'P-N1', type: 'Paiement recu', titre: 'Paiement confirme - Villa Kaloum', message: 'Le paiement de 2 500 000 GNF a ete recu et comptabilise.', date: '05/04/2026 10:20', statut: 'Non lu', canal: 'In-app + Email' },
+      { id: 'P-N2', type: 'Retard de paiement', titre: 'Retard detecte - Appartement Ratoma', message: 'Le paiement attendu au 05/04/2026 est en retard. Relance automatique envoyee.', date: '08/04/2026 08:10', statut: 'Lu', canal: 'In-app + SMS' },
+    ],
+    demandes: [
+      { id: 3012, type: 'Incident', sujet: 'Infiltration toiture commerce', bien: 'C-DIX-02', date: '01/04/2026', statut: 'En cours', priorite: 'Haute' },
+      { id: 3004, type: 'Informations', sujet: 'Question sur regularisation charges', bien: 'V-KLM-01', date: '25/03/2026', statut: 'Resolue', priorite: 'Normale' },
     ],
   },
   agence: {
@@ -95,6 +151,22 @@ export const tables = {
     ],
   },
   gestionnaire: {
+    proprietaires: [
+      { id: 'PR-001', nom: 'M. Camara', email: 'camara@invest.gn', telephone: '+224 620 00 11 22', statut: 'Actif' },
+      { id: 'PR-002', nom: 'Mme Bah', email: 'bah@holding.gn', telephone: '+224 621 00 22 33', statut: 'Actif' },
+    ],
+    locataires: [
+      { id: 'LC-101', nom: 'M. Diallo', email: 'diallo.loc@gmail.com', telephone: '+224 622 11 22 33', statut: 'Actif' },
+      { id: 'LC-102', nom: 'Mme Barry', email: 'barry.loc@gmail.com', telephone: '+224 623 11 22 33', statut: 'Suspendu' },
+    ],
+    'roles-permissions': [
+      { id: 'RP-1', acteur: 'M. Camara', typeCompte: 'Proprietaire', role: 'Lecture finance', permissions: 'Voir biens, voir revenus, telecharger rapports' },
+      { id: 'RP-2', acteur: 'M. Diallo', typeCompte: 'Locataire', role: 'Locataire standard', permissions: 'Payer loyer, voir contrat, soumettre demandes' },
+    ],
+    biens: [
+      { ref: 'B-GES-01', adresse: 'Kaloum - Villa C12', type: 'Villa', proprietaire: 'M. Camara', statut: 'Loue', loyer: '2 500 000 GNF' },
+      { ref: 'B-GES-02', adresse: 'Ratoma - Apt B5', type: 'Appartement', proprietaire: 'Mme Bah', statut: 'Disponible', loyer: '850 000 GNF' },
+    ],
     tickets: [
       { id: 'T-882', bien: 'Immeuble Matam — Lot 4', sujet: 'Ascenseur bloqué', sla: '4h', statut: 'Urgent' },
       { id: 'T-879', bien: 'Résidence Ratoma', sujet: 'Fuite toiture', sla: '24h', statut: 'En cours' },

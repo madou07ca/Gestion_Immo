@@ -24,6 +24,12 @@ export default function PropertyContactForm({ property, onClose }) {
         body: JSON.stringify(body),
       })
       if (res.ok) {
+        // Double enregistrement: lead marketing + pipeline prospect gestionnaire.
+        fetch('/api/prospects/interets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {})
         setSent(true)
         return
       }

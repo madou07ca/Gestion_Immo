@@ -1,18 +1,48 @@
 import { Link, useParams, Navigate } from 'react-router-dom'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Lock, Sparkles } from 'lucide-react'
 import Seo from '../components/Seo'
 import { espacePortals } from '../data/espacePortals'
+import { isRoleAuthorized, setAuthSession } from '../lib/authSession'
 
 export default function EspacePortal() {
   const { slug } = useParams()
   const portal = espacePortals[slug]
+  const [authForm, setAuthForm] = useState({ email: '', code: '' })
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const alreadyAuthorized = isRoleAuthorized(slug)
 
   if (!portal) {
     return <Navigate to="/espace" replace />
   }
 
   const Icon = portal.icon
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setAuthError('')
+    setAuthLoading(true)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: slug, email: authForm.email, code: authForm.code }),
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setAuthError(payload?.error || 'Connexion impossible.')
+        return
+      }
+      setAuthSession(payload.data)
+      window.location.href = `/espace/${slug}/app`
+    } catch {
+      setAuthError('Connexion impossible au serveur API.')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
 
   return (
     <div>
@@ -55,21 +85,45 @@ export default function EspacePortal() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="mt-10 flex flex-wrap gap-4"
+            className="mt-10"
           >
-            <Link
-              to={`/espace/${portal.slug}/app`}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold-500 px-6 py-3.5 text-night-900 font-semibold hover:bg-gold-400 transition-colors shadow-lg shadow-gold-500/20"
-            >
-              <Lock size={18} />
-              {"Entrer dans l'espace (démo)"}
-            </Link>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gold-500/40 bg-night-900/40 px-6 py-3.5 text-gold-300 font-medium hover:bg-gold-500/10 transition-colors"
-            >
-              Demander un accès pro
-            </button>
+            {alreadyAuthorized ? (
+              <Link
+                to={`/espace/${portal.slug}/app`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold-500 px-6 py-3.5 text-night-900 font-semibold hover:bg-gold-400 transition-colors shadow-lg shadow-gold-500/20"
+              >
+                <Lock size={18} />
+                Entrer dans l espace
+              </Link>
+            ) : (
+              <form onSubmit={handleLogin} className="max-w-xl rounded-xl border border-night-600 bg-night-900/50 p-4 md:p-5 grid md:grid-cols-3 gap-3">
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={authForm.email}
+                  onChange={(e) => setAuthForm((prev) => ({ ...prev, email: e.target.value }))}
+                  className="rounded-lg bg-night-800 border border-night-600 px-3 py-2 text-sm text-gray-200"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Code (demo: 1234)"
+                  value={authForm.code}
+                  onChange={(e) => setAuthForm((prev) => ({ ...prev, code: e.target.value }))}
+                  className="rounded-lg bg-night-800 border border-night-600 px-3 py-2 text-sm text-gray-200"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-night-900 font-semibold disabled:opacity-60"
+                >
+                  <Lock size={16} />
+                  {authLoading ? 'Connexion...' : 'Se connecter'}
+                </button>
+                {authError && <p className="md:col-span-3 text-xs text-red-400">{authError}</p>}
+              </form>
+            )}
           </motion.div>
           <p className="mt-4 text-xs text-gray-500 flex items-center gap-2">
             <Sparkles size={12} className="text-gold-600" />

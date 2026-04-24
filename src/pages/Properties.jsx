@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Grid3X3, List, SlidersHorizontal } from 'lucide-react'
 import Seo from '../components/Seo'
 import PropertyMapWrapper from '../components/PropertyMapWrapper'
 import { propertyTypes, districts, filterProperties } from '../data/properties'
+import { fetchPublicProperties } from '../lib/publicPropertiesApi'
 import PropertyCard from '../components/PropertyCard'
 
 const sortOptions = [
@@ -25,21 +26,32 @@ export default function Properties() {
     rooms: '',
     sort: 'date',
   })
+  const [apiProperties, setApiProperties] = useState([])
+
+  useEffect(() => {
+    let mounted = true
+    fetchPublicProperties().then((list) => {
+      if (mounted) setApiProperties(list)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const filtered = useMemo(() => {
-    let list = filterProperties({
-      type: filters.type || undefined,
-      district: filters.district || undefined,
-      minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
-      maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
-      minSurface: filters.minSurface ? Number(filters.minSurface) : undefined,
-      rooms: filters.rooms ? Number(filters.rooms) : undefined,
-    })
+    const source = apiProperties.length > 0 ? apiProperties : filterProperties({})
+    let list = [...source]
+    if (filters.type) list = list.filter((p) => p.type === filters.type)
+    if (filters.district) list = list.filter((p) => p.district === filters.district)
+    if (filters.minPrice) list = list.filter((p) => Number(p.price || 0) >= Number(filters.minPrice))
+    if (filters.maxPrice) list = list.filter((p) => Number(p.price || 0) <= Number(filters.maxPrice))
+    if (filters.minSurface) list = list.filter((p) => Number(p.surface || p.surfaceLand || 0) >= Number(filters.minSurface))
+    if (filters.rooms) list = list.filter((p) => Number(p.rooms || 0) >= Number(filters.rooms))
     if (filters.sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price)
     if (filters.sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price)
     if (filters.sort === 'surface-desc') list = [...list].sort((a, b) => (b.surface || b.surfaceLand || 0) - (a.surface || a.surfaceLand || 0))
     return list
-  }, [filters])
+  }, [filters, apiProperties])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">

@@ -1,19 +1,45 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, Bell } from 'lucide-react'
 import { espacePortals } from '../../data/espacePortals'
 import { portalAppMenus } from '../../data/portalAppMenus'
 import { kpiBySlug, activityFeed } from '../../data/portalMockData'
+import { getAuthSession } from '../../lib/authSession'
 
 export default function PortalDashboard() {
   const { slug } = useParams()
   const portal = espacePortals[slug]
   const menu = portalAppMenus[slug]
-  const kpis = kpiBySlug[slug] || []
-  const feed = activityFeed[slug] || []
+  const [kpis, setKpis] = useState(kpiBySlug[slug] || [])
+  const [feed, setFeed] = useState(activityFeed[slug] || [])
   const quick = menu?.filter((m) => m.path) || []
 
   if (!portal) return null
+
+  useEffect(() => {
+    if (slug !== 'proprietaire') return
+    const session = getAuthSession()
+    const ownerId = session?.role === 'proprietaire' ? session.userId : ''
+
+    const loadOwnerDashboard = async () => {
+      try {
+        const res = await fetch(`/api/proprietaire/me${ownerId ? `?ownerId=${ownerId}` : ''}`)
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.ok) return
+        if (Array.isArray(payload.data.kpis) && payload.data.kpis.length > 0) {
+          setKpis(payload.data.kpis)
+        }
+        if (Array.isArray(payload.data.feed)) {
+          setFeed(payload.data.feed)
+        }
+      } catch {
+        // fallback demo
+      }
+    }
+
+    loadOwnerDashboard()
+  }, [slug])
 
   return (
     <div>

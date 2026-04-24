@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useParams } from 'react-router-dom'
 import { Menu, ArrowLeft, Sparkles, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { espacePortals } from '../../data/espacePortals'
 import { portalAppMenus } from '../../data/portalAppMenus'
+import { clearAuthSession, getAuthSession, isRoleAuthorized } from '../../lib/authSession'
 
 export default function PortalShell() {
   const { slug } = useParams()
@@ -10,11 +11,21 @@ export default function PortalShell() {
   const menu = portalAppMenus[slug]
   const [mobileNav, setMobileNav] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const session = getAuthSession()
 
   if (!portal || !menu) {
     return (
       <div className="p-8 text-center text-gray-400">
         Espace inconnu. <Link to="/espace" className="text-gold-400">Retour</Link>
+      </div>
+    )
+  }
+
+  if (!isRoleAuthorized(slug)) {
+    return (
+      <div className="p-8 text-center text-gray-300">
+        <p className="mb-3">Acces refuse. Connectez-vous a l espace {slug}.</p>
+        <Link to={`/espace/${slug}`} className="text-gold-400 hover:underline">Retour a la connexion</Link>
       </div>
     )
   }
@@ -84,8 +95,18 @@ export default function PortalShell() {
           <div className="p-3 border-t border-night-600">
             <div className="rounded-lg bg-gold-500/10 border border-gold-500/20 px-3 py-2 text-[10px] text-gold-200/90 flex items-start gap-2">
               <Sparkles size={14} className="shrink-0 mt-0.5 text-gold-400" />
-              <span>Mode demo — donnees fictives. Pas de connexion serveur.</span>
+              <span>Connecte: {session?.name || session?.email || 'utilisateur'}.</span>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                clearAuthSession()
+                window.location.href = `/espace/${slug}`
+              }}
+              className="mt-2 w-full rounded-lg border border-night-600 px-3 py-2 text-xs text-gray-300 hover:border-gold-500/40"
+            >
+              Se deconnecter
+            </button>
           </div>
         )}
       </aside>

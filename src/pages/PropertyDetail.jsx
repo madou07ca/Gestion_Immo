@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Seo from '../components/Seo'
@@ -13,7 +13,8 @@ import {
   MessageCircle,
   Mail,
 } from 'lucide-react'
-import { getPropertyBySlug, filterProperties } from '../data/properties'
+import { properties as fallbackProperties } from '../data/properties'
+import { fetchPublicProperties } from '../lib/publicPropertiesApi'
 import PropertyCard from '../components/PropertyCard'
 import PropertyContactForm from '../components/PropertyContactForm'
 import PropertyMapWrapper from '../components/PropertyMapWrapper'
@@ -21,9 +22,20 @@ import PropertyMapWrapper from '../components/PropertyMapWrapper'
 export default function PropertyDetail() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const property = getPropertyBySlug(slug)
+  const [catalog, setCatalog] = useState(fallbackProperties)
   const [galleryIndex, setGalleryIndex] = useState(0)
   const [showContactForm, setShowContactForm] = useState(false)
+  const property = useMemo(() => catalog.find((item) => item.slug === slug), [catalog, slug])
+
+  useEffect(() => {
+    let mounted = true
+    fetchPublicProperties().then((list) => {
+      if (mounted && Array.isArray(list) && list.length > 0) setCatalog(list)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   if (!property) {
     return (
@@ -35,8 +47,8 @@ export default function PropertyDetail() {
   }
 
   const images = property.images?.length ? property.images : ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200']
-  const similar = filterProperties({ type: property.type, district: property.district })
-    .filter((p) => p.id !== property.id)
+  const similar = catalog
+    .filter((p) => p.type === property.type && p.district === property.district && p.id !== property.id)
     .slice(0, 3)
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Seo from '../components/Seo'
 import { Home as HomeIcon, Key, Building2, FileCheck, Shield, Star, ChevronRight } from 'lucide-react'
 import { getFeaturedProperties } from '../data/properties'
+import { fetchPublicProperties } from '../lib/publicPropertiesApi'
 import PropertyCard from '../components/PropertyCard'
 import QuickEstimationForm from '../components/QuickEstimationForm'
 import TestimonialsCarousel from '../components/TestimonialsCarousel'
@@ -33,7 +35,19 @@ const pillars = [
 ]
 
 export default function HomePage() {
-  const featured = getFeaturedProperties()
+  const [featured, setFeatured] = useState(getFeaturedProperties())
+
+  useEffect(() => {
+    let mounted = true
+    fetchPublicProperties().then((items) => {
+      if (!mounted) return
+      const list = items.filter((item) => item.featured || item.published)
+      if (list.length > 0) setFeatured(list)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   return (
     <div>
