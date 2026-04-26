@@ -1,4 +1,4 @@
-import { User, Building2, Landmark, LayoutDashboard } from 'lucide-react'
+import { User, Building2, Landmark, LayoutDashboard, ShieldCheck } from 'lucide-react'
 
 export const espacePortals = {
   locataire: {
@@ -95,6 +95,30 @@ export const espacePortals = {
       { value: 'Multi-portefeuille', label: 'Pilotage centralise' },
       { value: 'Automatise', label: 'Process recurrent' },
       { value: 'Audit ready', label: 'Conformite documentaire' },
+    ],
+  },
+  admin: {
+    slug: 'admin',
+    title: 'Espace admin',
+    tagline: 'Supervision globale de la plateforme',
+    description:
+      'Administrez les agences, les acces et la gouvernance de la plateforme depuis un cockpit centralise.',
+    icon: ShieldCheck,
+    accent: 'from-rose-500/20 to-red-600/10',
+    borderAccent: 'border-rose-500/30',
+    features: [
+      { title: 'Provisioning agences', text: 'Creation d agences avec onboarding directeur et code temporaire securise.' },
+      { title: 'Administration des acces', text: 'Gestion des comptes, activation/desactivation et reinitialisation des codes.' },
+      { title: 'Pilotage portefeuille', text: 'Suivi transverse des biens, contrats, quittances et activites metier.' },
+      { title: 'Conformite et audit', text: 'Tracabilite des operations critiques et controles d acces renforces.' },
+      { title: 'Support operationnel', text: 'Resolution rapide des incidents de connexion et des blocages metier.' },
+      { title: 'Gouvernance role-based', text: 'Parametrage des permissions et separation stricte des perimetres.' },
+    ],
+    stats: [
+      { value: 'Global', label: 'Vision plateforme' },
+      { value: 'Role-based', label: 'Controle des acces' },
+      { value: 'Secure by default', label: 'Sessions durcies' },
+      { value: 'Audit ready', label: 'Traçabilite complete' },
     ],
   },
 }

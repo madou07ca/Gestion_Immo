@@ -14,6 +14,7 @@ import {
   Receipt,
   AlertCircle,
   ScrollText,
+  Activity,
 } from 'lucide-react'
 
 export const portalAppMenus = {
@@ -38,17 +39,27 @@ export const portalAppMenus = {
   ],
   agence: [
     { path: '', label: 'Tableau de bord', icon: LayoutGrid },
-    { path: 'mandats', label: 'Mandats', icon: Landmark },
-    { path: 'leads', label: 'Leads & pipeline', icon: Target },
-    { path: 'visites', label: 'Visites', icon: ClipboardList },
-    { path: 'equipe', label: 'Équipe', icon: Users },
+    { path: 'proprietaires', label: 'Proprietaires', icon: Users },
+    { path: 'locataires', label: 'Locataires', icon: Users },
+    { path: 'gestionnaires', label: 'Gestionnaires', icon: ScrollText },
+    { path: 'biens', label: 'Biens', icon: Building2 },
   ],
   gestionnaire: [
     { path: '', label: 'Tableau de bord', icon: LayoutGrid },
+    { path: 'proprietaires', label: 'Proprietaires', icon: Users },
+    { path: 'locataires', label: 'Locataires', icon: Users },
+    { path: 'biens', label: 'Biens', icon: Building2 },
+  ],
+  admin: [
+    { path: '', label: 'Tableau de bord', icon: LayoutGrid },
+    { path: 'pilotage', label: 'Pilotage & risques', icon: Activity },
+    { path: 'dashboard-search', label: 'Recherche globale', icon: Target },
+    { path: 'contrats', label: 'Contrats', icon: FileText },
     { path: 'prospects', label: 'Prospects', icon: MessageSquare },
     { path: 'proprietaires', label: 'Proprietaires', icon: Users },
     { path: 'locataires', label: 'Locataires', icon: Users },
     { path: 'acces', label: 'Administration acces', icon: ScrollText },
+    { path: 'agences', label: 'Agences', icon: Landmark },
     { path: 'roles-permissions', label: 'Roles & permissions', icon: ScrollText },
     { path: 'biens', label: 'Gestion des biens', icon: Building2 },
     { path: 'tickets', label: 'Tickets & maintenance', icon: AlertCircle },

@@ -99,7 +99,18 @@ export default function PortalShell() {
             </div>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                const token = session?.token
+                if (token) {
+                  try {
+                    await fetch('/api/auth/logout', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                    })
+                  } catch {
+                    // Le nettoyage local suffit en fallback.
+                  }
+                }
                 clearAuthSession()
                 window.location.href = `/espace/${slug}`
               }}

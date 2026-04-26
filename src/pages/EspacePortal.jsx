@@ -1,17 +1,33 @@
 import { Link, useParams, Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Lock, Sparkles } from 'lucide-react'
+import { ArrowLeft, Lock, Sparkles, AlertCircle, Info } from 'lucide-react'
 import Seo from '../components/Seo'
 import { espacePortals } from '../data/espacePortals'
 import { isRoleAuthorized, setAuthSession } from '../lib/authSession'
+
+const SESSION_EXPIRED_FLASH_KEY = 'immo_session_expired_flash'
+
+function consumeSessionExpiredFlash(expectedRole) {
+  try {
+    const raw = sessionStorage.getItem(SESSION_EXPIRED_FLASH_KEY)
+    if (!raw) return ''
+    sessionStorage.removeItem(SESSION_EXPIRED_FLASH_KEY)
+    const payload = JSON.parse(raw)
+    if (!payload || payload.role !== expectedRole) return ''
+    return payload.message || ''
+  } catch {
+    return ''
+  }
+}
 
 export default function EspacePortal() {
   const { slug } = useParams()
   const portal = espacePortals[slug]
   const [authForm, setAuthForm] = useState({ email: '', code: '' })
   const [authLoading, setAuthLoading] = useState(false)
-  const [authError, setAuthError] = useState('')
+  const [authError, setAuthError] = useState(() => consumeSessionExpiredFlash(slug))
+  const isSessionExpiredMessage = authError.toLowerCase().includes('session expiree')
   const alreadyAuthorized = isRoleAuthorized(slug)
 
   if (!portal) {
@@ -121,7 +137,18 @@ export default function EspacePortal() {
                   <Lock size={16} />
                   {authLoading ? 'Connexion...' : 'Se connecter'}
                 </button>
-                {authError && <p className="md:col-span-3 text-xs text-red-400">{authError}</p>}
+                {authError && (
+                  <p
+                    className={`md:col-span-3 text-xs rounded-md border px-2.5 py-2 flex items-start gap-2 ${
+                      isSessionExpiredMessage
+                        ? 'text-amber-200 bg-amber-500/10 border-amber-500/30'
+                        : 'text-red-300 bg-red-500/10 border-red-500/30'
+                    }`}
+                  >
+                    {isSessionExpiredMessage ? <Info size={14} className="mt-0.5 shrink-0" /> : <AlertCircle size={14} className="mt-0.5 shrink-0" />}
+                    {authError}
+                  </p>
+                )}
               </form>
             )}
           </motion.div>

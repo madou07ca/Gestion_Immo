@@ -7,9 +7,12 @@ export const kpiBySlug = {
     { label: 'Demandes ouvertes', value: '1', sub: 'Incident plomberie en cours' },
   ],
   proprietaire: [
-    { label: 'Revenus mensuels', value: '4 200 000 GNF', sub: 'Mars 2026' },
-    { label: 'Biens loues', value: '3 / 4', sub: 'Taux d occupation 75%' },
-    { label: 'Paiements en retard', value: '1', sub: 'Action requise' },
+    { label: 'Encaissements cumules', value: '44 300 000 GNF', sub: 'Tous paiements confirmes' },
+    { label: 'Occupation du parc', value: '75%', sub: '3/4 biens loues' },
+    { label: 'Loyer securise / mois', value: '4 550 000 GNF', sub: 'Flux recurrent estime' },
+    { label: 'Vacance locative', value: '1', sub: 'Manque potentiel 850 000 GNF / mois' },
+    { label: 'Paiements en retard', value: '1', sub: 'Priorite recouvrement' },
+    { label: 'Biens en maintenance', value: '1', sub: 'Impact possible sur rendement' },
   ],
   agence: [
     { label: 'Mandats actifs', value: '28', sub: '12 ventes, 16 locations' },
@@ -21,6 +24,11 @@ export const kpiBySlug = {
     { label: 'Relances en cours', value: '6', sub: 'Loyers impayés' },
     { label: 'Biens suivis', value: '312', sub: '12 immeubles' },
   ],
+  admin: [
+    { label: 'Vue plateforme', value: 'Demo', sub: 'Redemarrez le backend pour charger les KPI reels' },
+    { label: 'Agences', value: '-', sub: 'Endpoint /api/admin/overview' },
+    { label: 'Occupation', value: '-', sub: 'Indicateur global' },
+  ],
 }
 
 export const activityFeed = {
@@ -30,8 +38,9 @@ export const activityFeed = {
     { t: '3 j', msg: 'Votre demande #142 (incident) est en cours de traitement.' },
   ],
   proprietaire: [
+    { t: 'Vacance', msg: '1 bien disponible - manque estime 850 000 GNF / mois.' },
+    { t: 'Risque', msg: 'Retard detecte sur Appartement Ratoma - relance en cours.' },
     { t: "Aujourd'hui", msg: 'Paiement recu pour Villa Kaloum - 2 500 000 GNF.' },
-    { t: 'Hier', msg: 'Retard de paiement detecte sur Appartement Ratoma.' },
     { t: '3 j', msg: 'Rapport mensuel Mars 2026 disponible en PDF.' },
   ],
   agence: [
@@ -41,6 +50,10 @@ export const activityFeed = {
   gestionnaire: [
     { t: 'Maintenant', msg: 'Ticket #T-882 escaladé — ascenseur Matam.' },
     { t: '30 min', msg: 'Relance automatique J+5 envoyée — Lot B12.' },
+  ],
+  admin: [
+    { t: 'Info', msg: 'Si les KPI restent en demo, verifiez que npm run server tourne sur le dernier code.' },
+    { t: 'Info', msg: 'Endpoint attendu: GET /api/admin/overview' },
   ],
 }
 
