@@ -18,7 +18,9 @@ import publicRoutes from './mvc/routes/publicRoutes.js'
 import agenceAdminRoutes from './mvc/routes/agenceAdminRoutes.js'
 import agenceWorkspaceRoutes from './mvc/routes/agenceWorkspaceRoutes.js'
 import adminPlatformRoutes from './mvc/routes/adminPlatformRoutes.js'
+import lifecycleRoutes from './mvc/routes/lifecycleRoutes.js'
 import { runSlaNotificationsAutoTick } from './mvc/services/operationsService.js'
+import { runRentalLifecycleTicks } from './mvc/services/lifecycleTickService.js'
 
 // Reconstitue __dirname en environnement ESM (import/export).
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -53,7 +55,7 @@ function writeLeads(leads) {
 
 app.use(cors())
 // Parse automatiquement req.body en JSON.
-app.use(express.json())
+app.use(express.json({ limit: '15mb' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/admin/acces', accessAdminRoutes)
 app.use('/api/proprietaires', proprietaireRoutes)
@@ -68,6 +70,8 @@ app.use('/api/gestionnaire', gestionnaireRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api/admin/agences', agenceAdminRoutes)
 app.use('/api/admin', adminPlatformRoutes)
+app.use('/api/gestionnaire/lifecycle', lifecycleRoutes)
+app.use('/api/admin/lifecycle', lifecycleRoutes)
 app.use('/api/agence', agenceWorkspaceRoutes)
 
 // Routes "leads" historiques du projet.
@@ -157,3 +161,11 @@ setInterval(() => {
     console.error('SLA auto tick error:', error?.message || error)
   }
 }, 60 * 1000)
+
+setInterval(() => {
+  try {
+    runRentalLifecycleTicks()
+  } catch (error) {
+    console.error('Lifecycle tick error:', error?.message || error)
+  }
+}, 60 * 60 * 1000)

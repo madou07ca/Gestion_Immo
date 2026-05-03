@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import Seo from '../components/Seo'
+import { DEFAULT_OG_IMAGE_URL } from '../lib/shareImages'
 import { espaceList } from '../data/espacePortals'
 
 export default function EspaceHub() {
@@ -9,7 +10,9 @@ export default function EspaceHub() {
     <div className="relative overflow-hidden">
       <Seo
         title="Plateforme"
-        description="Immo-Connect_GN : espaces connectés pour locataires, propriétaires, agences et gestionnaires."
+        description="ImmoConnect_GN : espaces connectés pour locataires, propriétaires, agences et gestionnaires."
+        ogImage={DEFAULT_OG_IMAGE_URL}
+        imageAlt="Plateforme ImmoConnect_GN — espaces connectés"
       />
 
       <section className="relative py-16 md:py-24">
@@ -21,7 +24,7 @@ export default function EspaceHub() {
             className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/10 px-4 py-1.5 text-xs font-medium text-gold-300 mb-6"
           >
             <Sparkles size={14} />
-            Plateforme Immo-Connect_GN
+            Plateforme ImmoConnect_GN
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 16 }}

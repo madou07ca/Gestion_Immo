@@ -74,7 +74,7 @@ export const tables = {
       reference: 'CTR-LOC-2025-0018',
       titulaire: 'M. Mamadou Diallo',
       proprietaire: 'SCI Kaloum Residence',
-      agence: 'Immo-Connect_GN',
+      agence: 'ImmoConnect_GN',
       dateSignature: '28/12/2024',
       dateEffet: '01/01/2025',
       depotGarantie: '2 500 000 GNF',

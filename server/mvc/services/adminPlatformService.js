@@ -8,6 +8,8 @@ import { listPaiements } from '../repositories/paiementRepository.js'
 import { listQuittances } from '../repositories/quittanceRepository.js'
 import { listContrats } from '../repositories/contratRepository.js'
 import { listTickets } from '../repositories/ticketRepository.js'
+import { listAuditEvents } from '../repositories/auditEventRepository.js'
+import { formatAuditEventsForAdmin } from './auditService.js'
 
 /** Parse YYYY-MM-DD en date locale (évite les décalages UTC). */
 function parseYmd(value) {
@@ -317,7 +319,8 @@ export function getAdminOverview() {
     accesInactifs: access.filter((a) => a.agenceId === row.agenceId && String(a.statut) !== 'Actif').length,
   }))
 
-  const auditEvents = [
+  const persistedAudit = formatAuditEventsForAdmin(listAuditEvents()).slice(0, 40)
+  const syntheticAudit = [
     ...alerts.map((a, idx) => ({
       horodatage: new Date(Date.now() - idx * 3600000).toLocaleString('fr-FR'),
       user: 'system.alerts',
@@ -334,7 +337,8 @@ export function getAdminOverview() {
       objectType: 'paiement',
       severity: 'medium',
     })),
-  ].slice(0, 20)
+  ]
+  const auditEvents = [...persistedAudit, ...syntheticAudit].slice(0, 60)
 
   return {
     data: {
@@ -405,4 +409,159 @@ export function searchAdminEntities(query) {
     if (hay.includes(term)) matches.push({ type: 'acces', id: item.id, label: item.nom || item.email || item.id, detail: item.role || '-' })
   })
   return { data: matches.slice(0, 60) }
+}
+
+/**
+ * Vue admin restreinte a une agence (directeur / gestionnaire).
+ * Ne renvoie pas les signaux / alertes agrégés sans perimeter agenceId.
+ */
+export function scopeAdminOverviewForAgence(data, agenceId) {
+  if (!data || !agenceId) return data
+  const aid = String(agenceId)
+  const matchesAgence = (row) =>
+    !row || row.agenceId === undefined || row.agenceId === null || String(row.agenceId) === aid
+
+  const byAgenceFiltered = (data.byAgence || []).filter((r) => String(r.agenceId) === aid)
+  const row = byAgenceFiltered[0]
+
+  const signals = []
+  if (row) {
+    if (Number(row.paiementsRetard || 0) > 0) {
+      signals.push({
+        severity: 'high',
+        label: 'Impayes',
+        value: String(row.paiementsRetard),
+        hint: 'Paiements en retard sur le portefeuille agence.',
+        agenceId: aid,
+      })
+    }
+    if (Number(row.ticketsHorsSla || 0) > 0) {
+      signals.push({
+        severity: 'high',
+        label: 'Tickets hors SLA',
+        value: String(row.ticketsHorsSla),
+        hint: 'Tickets agence depassant le delai SLA.',
+        agenceId: aid,
+      })
+    }
+    if (Number(row.ticketsOuverts || 0) > 0) {
+      signals.push({
+        severity: 'medium',
+        label: 'Tickets ouverts',
+        value: String(row.ticketsOuverts),
+        hint: 'Backlog operationnel agence.',
+        agenceId: aid,
+      })
+    }
+  }
+
+  const alerts = []
+  if (row && Number(row.paiementsRetard || 0) > 0) {
+    alerts.push({
+      id: 'alert-retards-agence',
+      severity: 'high',
+      title: `${row.paiementsRetard} impaye(s) agence`,
+      detail: 'Relances et recouvrement sur votre portefeuille.',
+      ctaSection: 'reporting',
+      ctaLabel: 'Voir reporting',
+      agenceId: aid,
+    })
+  }
+  if (row && Number(row.ticketsHorsSla || 0) > 0) {
+    alerts.push({
+      id: 'alert-sla-agence',
+      severity: 'high',
+      title: `${row.ticketsHorsSla} ticket(s) hors SLA`,
+      detail: 'Prioriser le traitement des dossiers agence.',
+      ctaSection: 'tickets',
+      ctaLabel: 'Tickets',
+      agenceId: aid,
+    })
+  }
+
+  const kpis = row
+    ? [
+        { label: 'Agence', value: row.agence, sub: 'Vue restreinte' },
+        { label: 'Biens', value: String(row.biens), sub: `${row.loues} loues` },
+        { label: 'Occupation', value: row.tauxOccupation, sub: 'Taux local' },
+        { label: 'Retards', value: String(row.paiementsRetard), sub: 'Paiements en retard' },
+        { label: 'Locataires', value: String(row.locataires), sub: 'Effectifs' },
+        { label: 'Gestionnaires', value: String(row.gestionnaires), sub: 'Equipe operationnelle' },
+      ]
+    : data.kpis
+
+  const actionsToday = alerts.slice(0, 5).map((item, index) => ({
+    id: `action-ag-${index + 1}`,
+    priority: item.severity === 'high' ? 'Haute' : item.severity === 'medium' ? 'Moyenne' : 'Normale',
+    title: item.title,
+    detail: item.detail,
+    section: item.ctaSection,
+  }))
+
+  return {
+    ...data,
+    kpis,
+    byAgence: byAgenceFiltered,
+    signals,
+    expiringLeases: (data.expiringLeases || []).filter(matchesAgence),
+    alerts,
+    actionsToday,
+    recoveryPlan: row && Number(row.paiementsRetard) > 0
+      ? [{ bucket: 'Retards agence', count: Number(row.paiementsRetard), action: 'Relances ciblees' }]
+      : [],
+    agencyComparison: {
+      top: byAgenceFiltered.slice(0, 3),
+      bottom: [...byAgenceFiltered].reverse().slice(0, 3),
+    },
+    forecast: data.forecast,
+    complianceByAgence: (data.complianceByAgence || []).filter((r) => String(r.agenceId) === aid),
+    auditEvents: (data.auditEvents || []).filter(matchesAgence),
+    feed: row
+      ? [
+          { t: 'Agence', msg: `${row.agence}: ${row.biens} biens, occupation ${row.tauxOccupation}.` },
+          { t: 'Tickets', msg: `${row.ticketsOuverts} ouvert(s), ${row.ticketsHorsSla} hors SLA.` },
+        ]
+      : [],
+    ticketSla: row
+      ? { ouverts: row.ticketsOuverts, horsSla: row.ticketsHorsSla }
+      : { ouverts: 0, horsSla: 0 },
+  }
+}
+
+export function scopeAdminSearchMatches(matches, agenceId) {
+  if (!agenceId || !Array.isArray(matches)) return matches
+  const aid = String(agenceId)
+  const biens = listBiens()
+  const proprietaires = listProprietaires()
+  const locataires = listLocataires()
+  const contrats = listContrats()
+  const access = listAccessUsers()
+  const bienById = Object.fromEntries(biens.map((b) => [b.id, b]))
+
+  return matches.filter((m) => {
+    if (m.type === 'agence') return m.id === aid
+    if (m.type === 'proprietaire') {
+      const p = proprietaires.find((x) => x.id === m.id)
+      return p && String(p.agenceId || '') === aid
+    }
+    if (m.type === 'locataire') {
+      const p = locataires.find((x) => x.id === m.id)
+      return p && String(p.agenceId || '') === aid
+    }
+    if (m.type === 'bien') {
+      const p = biens.find((x) => x.id === m.id)
+      return p && String(p.agenceId || '') === aid
+    }
+    if (m.type === 'contrat') {
+      const c = contrats.find((x) => x.id === m.id)
+      const b = c ? bienById[c.bienId] : null
+      return Boolean(b && String(b.agenceId || '') === aid)
+    }
+    if (m.type === 'acces') {
+      const a = access.find((x) => x.id === m.id)
+      if (!a) return false
+      return String(a.agenceId || '') === aid || String(a.linkedId || '') === aid
+    }
+    return false
+  })
 }

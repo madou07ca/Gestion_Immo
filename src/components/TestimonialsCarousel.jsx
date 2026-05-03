@@ -5,21 +5,21 @@ import { Quote, ChevronLeft, ChevronRight } from 'lucide-react'
 const testimonials = [
   {
     id: 1,
-    name: 'M. Diallo',
-    role: 'Propriétaire, Kaloum',
-    text: 'Une gestion impeccable depuis 3 ans. Les loyers sont encaissés à temps, les états des lieux sont rigoureux. Je recommande vivement.',
+    name: 'I. Sow',
+    role: 'Directrice d\'agence, Kaloum',
+    text: 'On a arrêté les fichiers Excel dispersés : mandats, quittances et annonces sont au même endroit. Les équipes ont gagné un temps fou sur le suivi des dossiers.',
   },
   {
     id: 2,
-    name: 'Mme Camara',
-    role: 'Investisseuse',
-    text: 'J\'ai fait estimer mon immeuble avant mise en location. Équipe professionnelle et discrète. Résultat au rendez-vous.',
+    name: 'M. Condé',
+    role: 'Gérant, réseau immobilier',
+    text: 'La vitrine publique tire nos annonces depuis la plateforme — plus de double saisie entre l’outil interne et le site. Le catalogue reflète ce qu’on publie réellement.',
   },
   {
     id: 3,
-    name: 'M. Bah',
-    role: 'Locataire',
-    text: 'J\'ai trouvé mon appartement en un rien de temps grâce aux filtres et à la réactivité de l\'agence. Très satisfait.',
+    name: 'Mme Barry',
+    role: 'Responsable exploitation',
+    text: 'Avoir un périmètre par agence avec des accès adaptés rassure direction et mandants. On sait qui fait quoi sur quel bien.',
   },
 ]
 
@@ -42,14 +42,14 @@ export default function TestimonialsCarousel() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3 }}
-          className="rounded-xl bg-night-700 border border-night-600 p-8 md:p-10"
+          className="rounded-xl bg-night-800 border border-night-500 p-8 md:p-10 shadow-lg shadow-black/20"
         >
-          <Quote className="text-gold-500/50 w-12 h-12 mb-4" />
-          <p className="text-gray-300 text-lg md:text-xl leading-relaxed italic">
+          <Quote className="text-gold-400/70 w-12 h-12 mb-4" />
+          <p className="text-gray-100 text-lg md:text-xl leading-relaxed italic">
             "{testimonials[index].text}"
           </p>
           <p className="mt-4 font-semibold text-gold-400">{testimonials[index].name}</p>
-          <p className="text-sm text-gray-500">{testimonials[index].role}</p>
+          <p className="text-sm text-gray-400">{testimonials[index].role}</p>
         </motion.div>
       </AnimatePresence>
       <div className="flex justify-center gap-2 mt-6">

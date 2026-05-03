@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Grid3X3, List, SlidersHorizontal } from 'lucide-react'
 import Seo from '../components/Seo'
+import { DEFAULT_OG_IMAGE_URL } from '../lib/shareImages'
 import PropertyMapWrapper from '../components/PropertyMapWrapper'
 import { propertyTypes, districts, filterProperties } from '../data/properties'
 import { fetchPublicProperties } from '../lib/publicPropertiesApi'
@@ -55,7 +56,12 @@ export default function Properties() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      <Seo title="Nos Biens" description="Recherchez parmi nos appartements, maisons, magasins, immeubles et terrains à Conakry. Filtres avancés et fiches détaillées." />
+      <Seo
+        title="Nos Biens"
+        description="Recherchez parmi nos appartements, maisons, magasins, immeubles et terrains à Conakry. Filtres avancés et fiches détaillées."
+        ogImage={DEFAULT_OG_IMAGE_URL}
+        imageAlt="Sélection de biens immobiliers à Conakry — ImmoConnect_GN"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

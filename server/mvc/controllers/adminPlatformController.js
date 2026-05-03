@@ -1,13 +1,24 @@
-import { getAdminOverview, searchAdminEntities } from '../services/adminPlatformService.js'
+import {
+  getAdminOverview,
+  searchAdminEntities,
+  scopeAdminOverviewForAgence,
+  scopeAdminSearchMatches,
+} from '../services/adminPlatformService.js'
 
-export function adminOverviewController(_req, res) {
+export function adminOverviewController(req, res) {
   const result = getAdminOverview()
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
-  return res.json({ ok: true, data: result.data })
+  const data = req.scopeAgenceId
+    ? scopeAdminOverviewForAgence(result.data, req.scopeAgenceId)
+    : result.data
+  return res.json({ ok: true, data })
 }
 
 export function adminSearchController(req, res) {
   const result = searchAdminEntities(req.query?.q)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
-  return res.json({ ok: true, data: result.data })
+  const data = req.scopeAgenceId
+    ? scopeAdminSearchMatches(result.data, req.scopeAgenceId)
+    : result.data
+  return res.json({ ok: true, data })
 }

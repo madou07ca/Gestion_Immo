@@ -6,7 +6,9 @@ import App from './App.jsx'
 import { initGlobalSessionGuard } from './lib/sessionGuard'
 
 initGlobalSessionGuard()
-registerSW({ immediate: true })
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true })
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

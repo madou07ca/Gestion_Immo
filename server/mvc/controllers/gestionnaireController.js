@@ -9,28 +9,51 @@ import {
   updateSlaNotificationSettings,
   getSlaNotificationPreview,
 } from '../services/operationsService.js'
+import { findTicketById } from '../repositories/ticketRepository.js'
+import { listBiens } from '../repositories/bienRepository.js'
+import { mergeBodyAgenceId } from '../utils/backofficeScope.js'
 
-export function listGestionnaireQuittancesController(_req, res) {
-  res.json(getGestionnaireQuittances())
+export function listGestionnaireQuittancesController(req, res) {
+  let rows = getGestionnaireQuittances()
+  if (req.scopeAgenceId) {
+    const biens = listBiens()
+    const bienById = Object.fromEntries(biens.map((b) => [b.id, b]))
+    const aid = req.scopeAgenceId
+    rows = rows.filter((q) => String(bienById[q.bienId]?.agenceId || '') === aid)
+  }
+  res.json(rows)
 }
 
-export function listGestionnaireTicketsController(_req, res) {
-  res.json(getGestionnaireTickets())
+export function listGestionnaireTicketsController(req, res) {
+  let rows = getGestionnaireTickets()
+  if (req.scopeAgenceId) {
+    rows = rows.filter((t) => String(t.agenceId || '') === req.scopeAgenceId)
+  }
+  res.json(rows)
 }
 
 export function createGestionnaireTicketController(req, res) {
-  const result = createGestionnaireTicket(req.body || {})
+  const body = mergeBodyAgenceId(req.body || {}, req.scopeAgenceId)
+  const result = createGestionnaireTicket(body)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   return res.status(201).json({ ok: true, data: result.data })
 }
 
 export function updateGestionnaireTicketController(req, res) {
+  const ticket = findTicketById(req.params.id)
+  if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket introuvable.' })
+  if (req.scopeAgenceId && String(ticket.agenceId || '') !== req.scopeAgenceId) {
+    return res.status(403).json({ ok: false, error: 'Ticket hors perimeter agence.' })
+  }
   const result = updateGestionnaireTicket(req.params.id, req.body || {})
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   return res.json({ ok: true, data: result.data })
 }
 
-export function runSlaNotificationsController(_req, res) {
+export function runSlaNotificationsController(req, res) {
+  if (req.scopeAgenceId) {
+    return res.status(403).json({ ok: false, error: 'Execution SLA globale reservee au pilotage plateforme.' })
+  }
   const result = runSlaNotificationsNow()
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   return res.json({ ok: true, data: result.data })
@@ -45,12 +68,18 @@ export function getSlaNotificationSettingsController(_req, res) {
 }
 
 export function updateSlaNotificationSettingsController(req, res) {
+  if (req.scopeAgenceId) {
+    return res.status(403).json({ ok: false, error: 'Parametrage SLA global reserve au pilotage plateforme.' })
+  }
   const result = updateSlaNotificationSettings(req.body || {})
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   return res.json({ ok: true, data: result.data })
 }
 
 export function previewSlaNotificationTemplateController(req, res) {
+  if (req.scopeAgenceId) {
+    return res.status(403).json({ ok: false, error: 'Previsualisation SLA globale reservee au pilotage plateforme.' })
+  }
   const result = getSlaNotificationPreview(req.body || {})
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   return res.json({ ok: true, data: result.data })
@@ -64,8 +93,14 @@ function escapeCsv(value) {
   return source
 }
 
-export function exportGestionnaireReportingCsvController(_req, res) {
-  const quittances = getGestionnaireQuittances()
+export function exportGestionnaireReportingCsvController(req, res) {
+  let quittances = getGestionnaireQuittances()
+  if (req.scopeAgenceId) {
+    const biens = listBiens()
+    const bienById = Object.fromEntries(biens.map((b) => [b.id, b]))
+    const aid = req.scopeAgenceId
+    quittances = quittances.filter((q) => String(bienById[q.bienId]?.agenceId || '') === aid)
+  }
   const grouped = quittances.reduce((acc, item) => {
     const period = item.periode || '-'
     if (!acc[period]) {

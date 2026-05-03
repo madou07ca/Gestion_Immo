@@ -5,6 +5,28 @@ import { listLocataires, findLocataireById, createLocataire, updateLocataire, de
 import { listBiens, findBienById, createBien, updateBien, deleteBien } from '../repositories/bienRepository.js'
 import { listAccessUsers, findAccessUserById, createAccessUser, updateAccessUser, deleteAccessUser } from '../repositories/accessRepository.js'
 
+export function normalizeFileAttachment(input) {
+  if (!input || typeof input !== 'object') return null
+  const name = ensureString(input.name)
+  const type = ensureString(input.type)
+  const dataUrl = ensureString(input.dataUrl)
+  const size = Number(input.size || 0)
+  if (!name || !dataUrl) return null
+  return {
+    name,
+    type,
+    size: Number.isFinite(size) ? size : 0,
+    dataUrl,
+  }
+}
+
+export function normalizeImageList(images) {
+  if (!Array.isArray(images)) return []
+  return images
+    .map((item) => ensureString(item))
+    .filter((item) => item.startsWith('http://') || item.startsWith('https://') || item.startsWith('data:image/'))
+}
+
 function normalizeAgence(agence) {
   return {
     id: agence.id,
@@ -176,6 +198,7 @@ export function createAgenceProprietaireService(agenceIdInput, input) {
       type: ensureString(input.type) || 'personne',
       pieceIdentiteType: ensureString(input.pieceIdentiteType),
       pieceIdentiteNumero: ensureString(input.pieceIdentiteNumero),
+      pieceIdentiteFile: normalizeFileAttachment(input.pieceIdentiteFile),
       statut: 'Actif',
       adressePostale: ensureString(input.adressePostale),
       createdAt: new Date().toISOString(),
@@ -202,6 +225,7 @@ export function updateAgenceProprietaireService(agenceIdInput, id, input) {
       type: input.type !== undefined ? ensureString(input.type) || 'personne' : item.type,
       pieceIdentiteType: input.pieceIdentiteType !== undefined ? ensureString(input.pieceIdentiteType) : item.pieceIdentiteType,
       pieceIdentiteNumero: input.pieceIdentiteNumero !== undefined ? ensureString(input.pieceIdentiteNumero) : item.pieceIdentiteNumero,
+      pieceIdentiteFile: input.pieceIdentiteFile !== undefined ? normalizeFileAttachment(input.pieceIdentiteFile) : item.pieceIdentiteFile,
       adressePostale: input.adressePostale !== undefined ? ensureString(input.adressePostale) : item.adressePostale,
       statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
       updatedAt: new Date().toISOString(),
@@ -242,6 +266,7 @@ export function createAgenceLocataireService(agenceIdInput, input) {
       dateNaissance: ensureString(input.dateNaissance),
       pieceIdentiteType: ensureString(input.pieceIdentiteType),
       pieceIdentiteNumero: ensureString(input.pieceIdentiteNumero),
+      pieceIdentiteFile: normalizeFileAttachment(input.pieceIdentiteFile),
       statut: 'Actif',
       situationPro: ensureString(input.situationPro),
       adresseActuelle: ensureString(input.adresseActuelle),
@@ -269,6 +294,7 @@ export function updateAgenceLocataireService(agenceIdInput, id, input) {
       dateNaissance: input.dateNaissance !== undefined ? ensureString(input.dateNaissance) : item.dateNaissance,
       pieceIdentiteType: input.pieceIdentiteType !== undefined ? ensureString(input.pieceIdentiteType) : item.pieceIdentiteType,
       pieceIdentiteNumero: input.pieceIdentiteNumero !== undefined ? ensureString(input.pieceIdentiteNumero) : item.pieceIdentiteNumero,
+      pieceIdentiteFile: input.pieceIdentiteFile !== undefined ? normalizeFileAttachment(input.pieceIdentiteFile) : item.pieceIdentiteFile,
       situationPro: input.situationPro !== undefined ? ensureString(input.situationPro) : item.situationPro,
       adresseActuelle: input.adresseActuelle !== undefined ? ensureString(input.adresseActuelle) : item.adresseActuelle,
       statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
@@ -397,7 +423,7 @@ export function createAgenceBienService(agenceIdInput, input) {
       statut: ensureString(input.statut) || 'disponible',
       published: Boolean(input.published),
       operation: 'location',
-      images: [],
+      images: normalizeImageList(input.images),
       createdAt: new Date().toISOString(),
     }),
   }
@@ -444,6 +470,7 @@ export function updateAgenceBienService(agenceIdInput, id, input) {
       assuranceAnnuelle: input.assuranceAnnuelle !== undefined ? Number(input.assuranceAnnuelle || 0) : item.assuranceAnnuelle,
       statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
       published: input.published !== undefined ? Boolean(input.published) : item.published,
+      images: input.images !== undefined ? normalizeImageList(input.images) : item.images,
       proprietaireId: nextOwnerId || item.proprietaireId,
       locataireId: nextTenantId || null,
       updatedAt: new Date().toISOString(),

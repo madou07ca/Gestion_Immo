@@ -18,6 +18,8 @@ import { fetchPublicProperties } from '../lib/publicPropertiesApi'
 import PropertyCard from '../components/PropertyCard'
 import PropertyContactForm from '../components/PropertyContactForm'
 import PropertyMapWrapper from '../components/PropertyMapWrapper'
+import { ogImageFromUnsplashBase } from '../lib/shareImages'
+import { isUnsplashImageUrl, propertyGalleryMainAttrs } from '../lib/responsiveImages'
 
 export default function PropertyDetail() {
   const { slug } = useParams()
@@ -53,8 +55,11 @@ export default function PropertyDetail() {
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
   const shareText = encodeURIComponent(`${property.title} - ${property.priceLabel}`)
-  const ogImage = images[0]
-  const seoDescription = `${property.title} - ${property.priceLabel} - ${property.district}, ${property.city}. ${property.description?.slice(0, 150)}...`
+  const rawOg = images[0]
+  const ogImage = isUnsplashImageUrl(rawOg) ? ogImageFromUnsplashBase(rawOg) : rawOg
+  const descSnippet = property.description?.trim()
+  const seoCore = [property.title, property.priceLabel, `${property.district}, ${property.city}`, descSnippet].filter(Boolean).join(' · ')
+  const seoDescription = seoCore.length > 160 ? `${seoCore.slice(0, 157)}…` : seoCore
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -64,6 +69,7 @@ export default function PropertyDetail() {
         ogImage={ogImage}
         ogUrl={shareUrl}
         ogType="article"
+        imageAlt={property.title}
       />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -81,7 +87,7 @@ export default function PropertyDetail() {
         {/* Galerie */}
         <div className="relative rounded-xl overflow-hidden bg-night-800 aspect-[16/10] mb-8">
           <img
-            src={images[galleryIndex]}
+            {...propertyGalleryMainAttrs(images[galleryIndex], { highPriority: galleryIndex === 0 })}
             alt={`${property.title} - vue ${galleryIndex + 1}`}
             className="w-full h-full object-cover"
           />

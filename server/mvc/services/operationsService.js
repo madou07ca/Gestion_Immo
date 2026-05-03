@@ -22,6 +22,9 @@ import {
   updateTicket,
 } from '../repositories/ticketRepository.js'
 import { getAppSettings, updateAppSettings } from '../repositories/settingsRepository.js'
+import { recordAuditEvent } from './auditService.js'
+import { listReversements } from '../repositories/reversementRepository.js'
+import { listEtatsLieux } from '../repositories/etatLieuRepository.js'
 
 const DEFAULT_SLA_TEMPLATES = {
   warning: {
@@ -296,11 +299,14 @@ export function getLocataireMe(tenantId) {
       }))),
   ].slice(0, 6)
 
+  const etatsLieuxLocataire = listEtatsLieux().filter((e) => e.locataireId === tenant.id)
+
   return {
     data: {
       tenant,
       bien,
       demandes,
+      etatsLieux: etatsLieuxLocataire,
       paiements: pendingPaiements,
       historiquePaiements,
       quittances: quittancesLocataire,
@@ -683,6 +689,15 @@ export function deleteContratService(id) {
   const removed = deleteContratById(id)
   if (!removed) return { error: { status: 404, message: 'Contrat introuvable.' } }
 
+  recordAuditEvent({
+    actor: 'api',
+    action: 'delete.contrat',
+    entityType: 'contrat',
+    entityId: id,
+    detail: `Suppression bail ${id}`,
+    severity: 'warning',
+  })
+
   if (current.bienId) {
     const property = findBienById(current.bienId)
     if (property && ensureString(property.locataireId) === ensureString(current.locataireId)) {
@@ -787,9 +802,19 @@ export function getProprietaireMe(ownerId) {
     })
   }
 
+  const bienIdSet = new Set(biens.map((b) => b.id))
+  const reversementsAgenda = listReversements()
+    .filter((r) => r.proprietaireId === owner.id)
+    .slice(0, 15)
+  const etatsLieuxParc = listEtatsLieux()
+    .filter((e) => bienIdSet.has(e.bienId))
+    .slice(0, 20)
+
   return {
     data: {
       owner,
+      reversementsAgenda,
+      etatsLieuxParc,
       kpis: [
         { label: 'Encaissements cumules', value: `${revenus.toLocaleString('fr-FR')} GNF`, sub: 'Tous paiements confirmes' },
         { label: 'Occupation du parc', value: `${tauxOccupation}%`, sub: `${biensLoues}/${totalBiens} biens loues` },

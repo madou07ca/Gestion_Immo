@@ -1,4 +1,4 @@
-# Immo-Connect_GN – Conakry
+# ImmoConnect_GN – Conakry
 
 Site vitrine et PWA de location et gestion locative haut de gamme à Conakry (appartements, maisons, magasins, immeubles, terrains).
 

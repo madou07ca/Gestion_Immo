@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { requireAuth, requireRoles } from '../middlewares/authMiddleware.js'
+import { attachScopeAgenceId } from '../middlewares/backofficeScopeMiddleware.js'
 import {
   listGestionnaireQuittancesController,
   listGestionnaireTicketsController,
@@ -13,6 +15,10 @@ import {
 } from '../controllers/gestionnaireController.js'
 
 const router = Router()
+
+router.use(requireAuth)
+router.use(requireRoles(['admin', 'agence', 'gestionnaire']))
+router.use(attachScopeAgenceId)
 
 router.get('/quittances', listGestionnaireQuittancesController)
 router.get('/tickets', listGestionnaireTicketsController)

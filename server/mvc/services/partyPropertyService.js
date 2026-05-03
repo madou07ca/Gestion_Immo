@@ -21,6 +21,8 @@ import {
   deleteBien,
 } from '../repositories/bienRepository.js'
 import { findAgenceById } from '../repositories/agenceRepository.js'
+import { normalizeFileAttachment, normalizeImageList } from './agenceService.js'
+import { recordAuditEvent } from './auditService.js'
 
 function parseArrayInput(value) {
   if (Array.isArray(value)) return value.map((item) => ensureString(item)).filter(Boolean)
@@ -58,6 +60,7 @@ export function createProprietaireService(input) {
     pieceIdentiteType: ensureString(input.pieceIdentiteType),
     pieceIdentiteNumero: ensureString(input.pieceIdentiteNumero),
     pieceIdentiteExpiration: ensureString(input.pieceIdentiteExpiration),
+    pieceIdentiteFile: normalizeFileAttachment(input.pieceIdentiteFile),
     statut: 'Actif',
     adresse: ensureString(input.adresse),
     adressePostale: ensureString(input.adressePostale),
@@ -89,6 +92,7 @@ export function updateProprietaireService(id, input) {
     pieceIdentiteType: input.pieceIdentiteType !== undefined ? ensureString(input.pieceIdentiteType) : item.pieceIdentiteType,
     pieceIdentiteNumero: input.pieceIdentiteNumero !== undefined ? ensureString(input.pieceIdentiteNumero) : item.pieceIdentiteNumero,
     pieceIdentiteExpiration: input.pieceIdentiteExpiration !== undefined ? ensureString(input.pieceIdentiteExpiration) : item.pieceIdentiteExpiration,
+    pieceIdentiteFile: input.pieceIdentiteFile !== undefined ? normalizeFileAttachment(input.pieceIdentiteFile) : item.pieceIdentiteFile,
     statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
     adresse: input.adresse !== undefined ? ensureString(input.adresse) : item.adresse,
     adressePostale: input.adressePostale !== undefined ? ensureString(input.adressePostale) : item.adressePostale,
@@ -107,6 +111,14 @@ export function deleteProprietaireService(id) {
     return { error: { status: 400, message: 'Suppression impossible: ce proprietaire est associe a un ou plusieurs biens.' } }
   }
   deleteProprietaire(id)
+  recordAuditEvent({
+    actor: 'api',
+    action: 'delete.proprietaire',
+    entityType: 'proprietaire',
+    entityId: id,
+    detail: `Suppression proprietaire ${id}`,
+    severity: 'warning',
+  })
   return { data: { ok: true } }
 }
 
@@ -134,10 +146,11 @@ export function createLocataireService(input) {
     pieceIdentiteType: ensureString(input.pieceIdentiteType),
     pieceIdentiteNumero: ensureString(input.pieceIdentiteNumero),
     pieceIdentiteExpiration: ensureString(input.pieceIdentiteExpiration),
+    pieceIdentiteFile: normalizeFileAttachment(input.pieceIdentiteFile),
     statut: 'Actif',
     profession: ensureString(input.profession),
     situationPro: ensureString(input.situationPro),
-    adresseActuelle: ensureString(input.adresseActuelle),
+    adresseActuelle: ensureString(input.adresseActuelle || input.adresse),
     revenuMensuel: isPositiveNumber(input.revenuMensuel) ? Number(input.revenuMensuel) : null,
     contactUrgenceNom: ensureString(input.contactUrgenceNom),
     contactUrgenceTelephone: ensureString(input.contactUrgenceTelephone),
@@ -166,6 +179,7 @@ export function updateLocataireService(id, input) {
     pieceIdentiteType: input.pieceIdentiteType !== undefined ? ensureString(input.pieceIdentiteType) : item.pieceIdentiteType,
     pieceIdentiteNumero: input.pieceIdentiteNumero !== undefined ? ensureString(input.pieceIdentiteNumero) : item.pieceIdentiteNumero,
     pieceIdentiteExpiration: input.pieceIdentiteExpiration !== undefined ? ensureString(input.pieceIdentiteExpiration) : item.pieceIdentiteExpiration,
+    pieceIdentiteFile: input.pieceIdentiteFile !== undefined ? normalizeFileAttachment(input.pieceIdentiteFile) : item.pieceIdentiteFile,
     statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
     profession: input.profession !== undefined ? ensureString(input.profession) : item.profession,
     situationPro: input.situationPro !== undefined ? ensureString(input.situationPro) : item.situationPro,
@@ -190,6 +204,14 @@ export function deleteLocataireService(id) {
     return { error: { status: 400, message: 'Suppression impossible: ce locataire est associe a un ou plusieurs biens.' } }
   }
   deleteLocataire(id)
+  recordAuditEvent({
+    actor: 'api',
+    action: 'delete.locataire',
+    entityType: 'locataire',
+    entityId: id,
+    detail: `Suppression locataire ${id}`,
+    severity: 'warning',
+  })
   return { data: { ok: true } }
 }
 
@@ -238,7 +260,7 @@ export function createBienService(input) {
     statut: ensureString(input.statut) || 'disponible',
     operation: 'location',
     published: Boolean(input.published),
-    images: Array.isArray(input.images) ? input.images : [],
+    images: normalizeImageList(input.images),
     proprietaireId,
     locataireId: locataireId || null,
     description: ensureString(input.description),
@@ -297,7 +319,7 @@ export function updateBienService(id, input) {
     statut: input.statut !== undefined ? ensureString(input.statut) || 'disponible' : item.statut || 'disponible',
     published: input.published !== undefined ? Boolean(input.published) : Boolean(item.published),
     operation: input.operation !== undefined ? ensureString(input.operation) || 'location' : item.operation || 'location',
-    images: input.images !== undefined ? (Array.isArray(input.images) ? input.images : []) : (Array.isArray(item.images) ? item.images : []),
+    images: input.images !== undefined ? normalizeImageList(input.images) : (Array.isArray(item.images) ? item.images : []),
     dateDisponibilite: input.dateDisponibilite !== undefined ? ensureString(input.dateDisponibilite) : item.dateDisponibilite,
     anneeConstruction: input.anneeConstruction !== undefined
       ? (isPositiveNumber(input.anneeConstruction) ? Number(input.anneeConstruction) : null)
@@ -316,6 +338,14 @@ export function updateBienService(id, input) {
 export function deleteBienService(id) {
   if (!findBienById(id)) return { error: { status: 404, message: 'Bien introuvable.' } }
   deleteBien(id)
+  recordAuditEvent({
+    actor: 'api',
+    action: 'delete.bien',
+    entityType: 'bien',
+    entityId: id,
+    detail: `Suppression bien ${id}`,
+    severity: 'warning',
+  })
   return { data: { ok: true } }
 }
 

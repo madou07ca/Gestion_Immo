@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { espacePortals } from '../../data/espacePortals'
@@ -23,6 +23,9 @@ const DEFAULT_SLA_TEMPLATES = {
   },
 }
 
+const PortalReportingContent = lazy(() => import('../../components/portal/reporting/PortalReportingContent'))
+const AdminReportingVisuals = lazy(() => import('../../components/portal/reporting/AdminReportingVisuals'))
+
 function mapOwnerToRow(owner) {
   return {
     id: owner.id,
@@ -31,6 +34,7 @@ function mapOwnerToRow(owner) {
     email: owner.email || '-',
     telephone: owner.telephone || '-',
     statut: owner.statut || 'Actif',
+    pieceIdentiteFile: owner.pieceIdentiteFile || null,
   }
 }
 
@@ -42,6 +46,7 @@ function mapTenantToRow(tenant) {
     email: tenant.email || '-',
     telephone: tenant.telephone || '-',
     statut: tenant.statut || 'Actif',
+    pieceIdentiteFile: tenant.pieceIdentiteFile || null,
   }
 }
 
@@ -117,29 +122,45 @@ function SimpleTable({ columns, rows, rowKey }) {
     )
   }
   return (
-    <div className="overflow-x-auto rounded-xl border border-night-600">
-      <table className="w-full text-sm text-left">
-        <thead>
-          <tr className="border-b border-night-600 bg-night-800/80">
+    <div className="rounded-xl border border-night-600 overflow-hidden">
+      <div className="md:hidden divide-y divide-night-600">
+        {rows.map((row, i) => (
+          <div key={rowKey(row, i)} className="bg-night-900/30 p-3 space-y-2">
             {columns.map((c) => (
-              <th key={c.key} className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-night-600">
-          {rows.map((row, i) => (
-            <tr key={rowKey(row, i)} className="hover:bg-night-800/40">
-              {columns.map((c) => (
-                <td key={c.key} className="px-4 py-3 text-gray-300">
+              <div key={c.key} className="flex items-start justify-between gap-3 text-sm">
+                <span className="text-gray-500 shrink-0">{c.label}</span>
+                <span className="text-gray-300 text-right break-words">
                   {c.render ? c.render(row) : row[c.key]}
-                </td>
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead>
+            <tr className="border-b border-night-600 bg-night-800/80">
+              {columns.map((c) => (
+                <th key={c.key} className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">
+                  {c.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-night-600">
+            {rows.map((row, i) => (
+              <tr key={rowKey(row, i)} className="hover:bg-night-800/40">
+                {columns.map((c) => (
+                  <td key={c.key} className="px-4 py-3 text-gray-300">
+                    {c.render ? c.render(row) : row[c.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -161,7 +182,7 @@ function PaginationControls({ page, total, onPrev, onNext }) {
 
 export default function PortalSectionPage() {
   const { slug, section } = useParams()
-  const isBackoffice = slug === 'admin'
+  const isBackoffice = slug === 'admin' || slug === 'agence'
   const navigate = useNavigate()
   const portal = espacePortals[slug]
   const data = isBackoffice ? tables.gestionnaire?.[section] : tables[slug]?.[section]
@@ -268,6 +289,10 @@ export default function PortalSectionPage() {
     taxeFonciereAnnuelle: '',
     assuranceAnnuelle: '',
   })
+  const [gestionnaireBienImageFiles, setGestionnaireBienImageFiles] = useState([])
+  const [gestionnaireBienImagePreviews, setGestionnaireBienImagePreviews] = useState([])
+  const [gestionnaireBienDragOver, setGestionnaireBienDragOver] = useState(false)
+  const [userIdentityFile, setUserIdentityFile] = useState(null)
   const [gestionnaireFeedback, setGestionnaireFeedback] = useState('')
   const [gestionnaireSubmitting, setGestionnaireSubmitting] = useState(false)
   const [contratForm, setContratForm] = useState({
@@ -302,6 +327,7 @@ export default function PortalSectionPage() {
   const [agenceSearch, setAgenceSearch] = useState('')
   const [agencePage, setAgencePage] = useState(1)
   const [agenceActorForm, setAgenceActorForm] = useState({ nom: '', email: '', telephone: '' })
+  const [agenceActorIdentityFile, setAgenceActorIdentityFile] = useState(null)
   const [agenceGestionnaireForm, setAgenceGestionnaireForm] = useState({ nom: '', email: '', code: '1234' })
   const [agenceBienForm, setAgenceBienForm] = useState({
     titre: '',
@@ -314,6 +340,9 @@ export default function PortalSectionPage() {
     chargesMensuelles: '',
     fraisGestionMensuels: '',
   })
+  const [agenceBienImageFiles, setAgenceBienImageFiles] = useState([])
+  const [agenceBienImagePreviews, setAgenceBienImagePreviews] = useState([])
+  const [agenceBienDragOver, setAgenceBienDragOver] = useState(false)
   const [adminAgences, setAdminAgences] = useState([])
   const [adminOverview, setAdminOverview] = useState({
     kpis: [],
@@ -339,6 +368,32 @@ export default function PortalSectionPage() {
     minOccupation: 'all',
     retardOnly: false,
   })
+  const [lifecycleAlerts, setLifecycleAlerts] = useState([])
+  const [lifecycleFeedback, setLifecycleFeedback] = useState('')
+  const [lifecycleMonth, setLifecycleMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [lifecycleGdprId, setLifecycleGdprId] = useState('')
+  const [lifecycleGdprJson, setLifecycleGdprJson] = useState('')
+  const [lifecycleRevOwner, setLifecycleRevOwner] = useState('')
+  const [lifecycleRevPeriod, setLifecycleRevPeriod] = useState('')
+  const [edlRows, setEdlRows] = useState([])
+  const [edlFeedback, setEdlFeedback] = useState('')
+  const [edlForm, setEdlForm] = useState({
+    contratId: '',
+    type: 'entree',
+    observations: '',
+    statut: 'brouillon',
+  })
+  const [cautionRows, setCautionRows] = useState([])
+  const [cautionFeedback, setCautionFeedback] = useState('')
+  const [cautionForm, setCautionForm] = useState({
+    contratId: '',
+    montantEncaisse: '',
+    statut: 'detenu',
+    notes: '',
+  })
   const [adminAgenceForm, setAdminAgenceForm] = useState({
     nom: '',
     codeAgence: '',
@@ -355,6 +410,10 @@ export default function PortalSectionPage() {
 
   if (!portal) return null
 
+  const authSession = getAuthSession()
+  const isAgencyPortal = slug === 'agence'
+  const scopedAgenceId = isAgencyPortal && authSession?.agenceId ? String(authSession.agenceId) : null
+
   const title = section
     ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ')
     : ''
@@ -365,10 +424,81 @@ export default function PortalSectionPage() {
     gestionnaire: { create: true, update: true, delete: false },
     consultation: { create: false, update: false, delete: false },
   }
-  const can = (action) => permissionMap[accessProfile]?.[action]
+  const effectiveProfile = isAgencyPortal ? 'admin' : accessProfile
+  const can = (action) => permissionMap[effectiveProfile]?.[action]
   const isAdminPortal = slug === 'admin'
 
   const formatGNF = (amount) => `${amount.toLocaleString('fr-FR')} GNF`
+  const toFilePayload = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl: String(reader.result || ''),
+      })
+      reader.onerror = () => reject(new Error('read-failed'))
+      reader.readAsDataURL(file)
+    })
+  const toImageDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('read-failed'))
+      reader.readAsDataURL(file)
+    })
+  const toImagePreviewUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('read-failed'))
+      reader.readAsDataURL(file)
+    })
+  const applyAgenceBienImages = async (files) => {
+    const nextFiles = files.slice(0, 8)
+    setAgenceBienImageFiles(nextFiles)
+    const previews = await Promise.all(nextFiles.map((file) => toImagePreviewUrl(file)))
+    setAgenceBienImagePreviews(previews)
+  }
+  const moveAgenceBienImage = (from, to) => {
+    setAgenceBienImageFiles((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev
+      const copy = [...prev]
+      const [item] = copy.splice(from, 1)
+      copy.splice(to, 0, item)
+      return copy
+    })
+    setAgenceBienImagePreviews((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev
+      const copy = [...prev]
+      const [item] = copy.splice(from, 1)
+      copy.splice(to, 0, item)
+      return copy
+    })
+  }
+  const applyGestionnaireBienImages = async (files) => {
+    const nextFiles = files.slice(0, 8)
+    setGestionnaireBienImageFiles(nextFiles)
+    const previews = await Promise.all(nextFiles.map((file) => toImagePreviewUrl(file)))
+    setGestionnaireBienImagePreviews(previews)
+  }
+  const moveGestionnaireBienImage = (from, to) => {
+    setGestionnaireBienImageFiles((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev
+      const copy = [...prev]
+      const [item] = copy.splice(from, 1)
+      copy.splice(to, 0, item)
+      return copy
+    })
+    setGestionnaireBienImagePreviews((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev
+      const copy = [...prev]
+      const [item] = copy.splice(from, 1)
+      copy.splice(to, 0, item)
+      return copy
+    })
+  }
   const selectedPayments = useMemo(
     () => pendingPayments.filter((p) => paymentForm.selected.includes(p.id)),
     [pendingPayments, paymentForm.selected],
@@ -394,10 +524,12 @@ export default function PortalSectionPage() {
     }
   }
 
-  const authSession = getAuthSession()
-  const agenceAuthHeaders = authSession?.token
-    ? { Authorization: `Bearer ${authSession.token}` }
-    : {}
+  const authHeaders = authSession?.token ? { Authorization: `Bearer ${authSession.token}` } : {}
+  const portalApiFetch = (url, init = {}) =>
+    fetch(url, {
+      ...init,
+      headers: { ...authHeaders, ...(init.headers || {}) },
+    })
 
   useEffect(() => {
     if (!isBackoffice) return
@@ -407,23 +539,23 @@ export default function PortalSectionPage() {
     const loadCollections = async () => {
       try {
         const [ownersRes, tenantsRes, propertiesRes, prospectsRes, quittancesRes, accessRes, contratsRes, ticketsRes, slaLogsRes, slaSettingsRes] = await Promise.all([
-          fetch(`${API_BASE}/proprietaires`),
-          fetch(`${API_BASE}/locataires`),
-          fetch(`${API_BASE}/biens`),
-          fetch(`${API_BASE}/prospects/interets`),
-          fetch(`${API_BASE}/gestionnaire/quittances`),
-          fetch(`${API_BASE}/admin/acces`),
-          fetch(`${API_BASE}/contrats`),
-          fetch(`${API_BASE}/gestionnaire/tickets`),
-          fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/logs`),
-          fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`),
+          portalApiFetch(`${API_BASE}/proprietaires`),
+          portalApiFetch(`${API_BASE}/locataires`),
+          portalApiFetch(`${API_BASE}/biens`),
+          portalApiFetch(`${API_BASE}/prospects/interets`),
+          portalApiFetch(`${API_BASE}/gestionnaire/quittances`),
+          portalApiFetch(`${API_BASE}/admin/acces`),
+          portalApiFetch(`${API_BASE}/contrats`),
+          portalApiFetch(`${API_BASE}/gestionnaire/tickets`),
+          portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/logs`),
+          portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`),
         ])
 
         if (!ownersRes.ok || !tenantsRes.ok || !propertiesRes.ok || !prospectsRes.ok || !quittancesRes.ok || !accessRes.ok || !contratsRes.ok || !ticketsRes.ok || !slaLogsRes.ok || !slaSettingsRes.ok) {
           throw new Error('Erreur de chargement des donnees.')
         }
 
-        const [ownersData, tenantsData, propertiesData, prospectsData, quittancesData, accessData, contratsData, ticketsData, slaLogsData, slaSettingsData] = await Promise.all([
+        let [ownersData, tenantsData, propertiesData, prospectsData, quittancesData, accessData, contratsData, ticketsData, slaLogsData, slaSettingsData] = await Promise.all([
           ownersRes.json(),
           tenantsRes.json(),
           propertiesRes.json(),
@@ -435,6 +567,40 @@ export default function PortalSectionPage() {
           slaLogsRes.json(),
           slaSettingsRes.json().then((p) => p?.data || {}),
         ])
+
+        const aid = slug === 'agence' && authSession?.agenceId ? String(authSession.agenceId) : null
+        if (aid && Array.isArray(ownersData)) {
+          ownersData = ownersData.filter((o) => String(o.agenceId || '') === aid)
+        }
+        if (aid && Array.isArray(tenantsData)) {
+          tenantsData = tenantsData.filter((o) => String(o.agenceId || '') === aid)
+        }
+        if (aid && Array.isArray(propertiesData)) {
+          propertiesData = propertiesData.filter((p) => String(p.agenceId || '') === aid)
+        }
+        if (aid && Array.isArray(prospectsData)) {
+          prospectsData = prospectsData.filter((p) => !p.agenceId || String(p.agenceId) === aid)
+        }
+        if (aid && Array.isArray(accessData)) {
+          accessData = accessData.filter(
+            (a) => String(a.agenceId || '') === aid || String(a.linkedId || '') === aid,
+          )
+        }
+        const propertyIdSet = aid && Array.isArray(propertiesData)
+          ? new Set(propertiesData.map((p) => p.id))
+          : null
+        if (propertyIdSet && Array.isArray(contratsData)) {
+          contratsData = contratsData.filter((c) => propertyIdSet.has(c.bienId))
+        }
+        if (aid && Array.isArray(ticketsData)) {
+          ticketsData = ticketsData.filter((t) => String(t.agenceId || '') === aid)
+        }
+        if (aid && Array.isArray(quittancesData)) {
+          quittancesData = quittancesData.filter((q) => {
+            const bien = propertiesData?.find((p) => p.id === q.bienId)
+            return bien ? String(bien.agenceId || '') === aid : true
+          })
+        }
 
         if (!isMounted) return
 
@@ -476,14 +642,19 @@ export default function PortalSectionPage() {
     return () => {
       isMounted = false
     }
-  }, [slug, isBackoffice])
+  }, [slug, isBackoffice, scopedAgenceId])
 
   useEffect(() => {
-    if (!isAdminPortal) return
+    if (!isAgencyPortal || !scopedAgenceId) return
+    setAdminBiFilters((prev) => ({ ...prev, agenceId: scopedAgenceId }))
+  }, [isAgencyPortal, scopedAgenceId])
+
+  useEffect(() => {
+    if (!isAdminPortal && !isAgencyPortal) return
     let isMounted = true
     const loadAdminOverview = async () => {
       try {
-        const res = await fetch(`${API_BASE}/admin/overview`)
+        const res = await portalApiFetch(`${API_BASE}/admin/overview`)
         const payload = await res.json().catch(() => ({}))
         if (!isMounted) return
         if (!res.ok || !payload?.ok) {
@@ -495,7 +666,10 @@ export default function PortalSectionPage() {
           return
         }
         setAdminOverviewFeedback('')
-        setAdminOverview({
+        const aid = isAgencyPortal && scopedAgenceId ? scopedAgenceId : null
+        const matchesAgence = (row) =>
+          !aid || !row || row.agenceId === undefined || row.agenceId === null || String(row.agenceId) === aid
+        const nextOverview = {
           kpis: Array.isArray(payload.data?.kpis) ? payload.data.kpis : [],
           feed: Array.isArray(payload.data?.feed) ? payload.data.feed : [],
           byAgence: Array.isArray(payload.data?.byAgence) ? payload.data.byAgence : [],
@@ -508,7 +682,17 @@ export default function PortalSectionPage() {
           forecast: Array.isArray(payload.data?.forecast) ? payload.data.forecast : [],
           complianceByAgence: Array.isArray(payload.data?.complianceByAgence) ? payload.data.complianceByAgence : [],
           auditEvents: Array.isArray(payload.data?.auditEvents) ? payload.data.auditEvents : [],
-        })
+        }
+        if (aid) {
+          nextOverview.byAgence = nextOverview.byAgence.filter((r) => String(r.agenceId) === aid)
+          nextOverview.signals = nextOverview.signals.filter(matchesAgence)
+          nextOverview.expiringLeases = nextOverview.expiringLeases.filter(matchesAgence)
+          nextOverview.alerts = nextOverview.alerts.filter(matchesAgence)
+          nextOverview.actionsToday = nextOverview.actionsToday.filter(matchesAgence)
+          nextOverview.complianceByAgence = nextOverview.complianceByAgence.filter((r) => String(r.agenceId) === aid)
+          nextOverview.auditEvents = nextOverview.auditEvents.filter(matchesAgence)
+        }
+        setAdminOverview(nextOverview)
       } catch {
         if (isMounted) {
           setAdminOverviewFeedback('Connexion impossible au serveur API pour la vue admin.')
@@ -519,10 +703,64 @@ export default function PortalSectionPage() {
     return () => {
       isMounted = false
     }
-  }, [isAdminPortal])
+  }, [isAdminPortal, isAgencyPortal, scopedAgenceId])
 
   useEffect(() => {
-    if (!isAdminPortal) return
+    if (!isBackoffice || section !== 'pilotage-locatif') return
+    let active = true
+    const load = async () => {
+      try {
+        const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/compliance/alerts`)
+        const payload = await res.json().catch(() => ({}))
+        if (!active || !res.ok) return
+        let rows = Array.isArray(payload.data?.alerts) ? payload.data.alerts : []
+        if (scopedAgenceId) {
+          rows = rows.filter((a) => !a.agenceId || String(a.agenceId) === scopedAgenceId)
+        }
+        setLifecycleAlerts(rows)
+      } catch {
+        if (active) setLifecycleAlerts([])
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [isBackoffice, section, scopedAgenceId])
+
+  useEffect(() => {
+    if (!isBackoffice || (section !== 'etats-lieux' && section !== 'cautions')) return
+    let active = true
+    const load = async () => {
+      try {
+        const [eRes, cRes] = await Promise.all([
+          portalApiFetch(`${API_BASE}/admin/lifecycle/etats-lieux`),
+          portalApiFetch(`${API_BASE}/admin/lifecycle/cautions`),
+        ])
+        const [ePayload, cPayload] = await Promise.all([eRes.json().catch(() => ({})), cRes.json().catch(() => ({}))])
+        if (!active) return
+        let ed = eRes.ok && Array.isArray(ePayload.data) ? ePayload.data : []
+        let ca = cRes.ok && Array.isArray(cPayload.data) ? cPayload.data : []
+        if (scopedAgenceId) {
+          ed = ed.filter((r) => !r.agenceId || String(r.agenceId) === scopedAgenceId)
+          ca = ca.filter((r) => !r.agenceId || String(r.agenceId) === scopedAgenceId)
+        }
+        setEdlRows(ed)
+        setCautionRows(ca)
+      } catch {
+        if (active) {
+          setEdlFeedback('Chargement impossible.')
+        }
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [isBackoffice, section, scopedAgenceId])
+
+  useEffect(() => {
+    if (!isAdminPortal && !isAgencyPortal) return
     if (!adminSearchTerm.trim()) {
       setAdminSearchResults([])
       return
@@ -530,25 +768,34 @@ export default function PortalSectionPage() {
     let active = true
     const run = async () => {
       try {
-        const res = await fetch(`${API_BASE}/admin/search?q=${encodeURIComponent(adminSearchTerm.trim())}`)
+        const res = await portalApiFetch(`${API_BASE}/admin/search?q=${encodeURIComponent(adminSearchTerm.trim())}`)
         const payload = await res.json().catch(() => ({}))
         if (!active) return
         if (!res.ok || !payload?.ok) return
-        setAdminSearchResults(Array.isArray(payload.data) ? payload.data : [])
+        let rows = Array.isArray(payload.data) ? payload.data : []
+        if (scopedAgenceId) {
+          rows = rows.filter(
+            (r) =>
+              r.agenceId === scopedAgenceId
+              || String(r.detail || '').includes(scopedAgenceId)
+              || String(r.id || '').includes(scopedAgenceId),
+          )
+        }
+        setAdminSearchResults(rows)
       } catch {
         if (active) setAdminSearchResults([])
       }
     }
     run()
     return () => { active = false }
-  }, [isAdminPortal, adminSearchTerm])
+  }, [isAdminPortal, isAgencyPortal, scopedAgenceId, adminSearchTerm])
 
   useEffect(() => {
     if (slug !== 'agence' && slug !== 'gestionnaire') return
     let isMounted = true
     const loadAgenceWorkspace = async () => {
       try {
-        const res = await fetch(`${API_BASE}/agence/workspace`, { headers: agenceAuthHeaders })
+        const res = await portalApiFetch(`${API_BASE}/agence/workspace`)
         const payload = await res.json().catch(() => ({}))
         if (!res.ok || !payload?.ok || !isMounted) return
         const next = payload.data || {}
@@ -580,7 +827,7 @@ export default function PortalSectionPage() {
     let isMounted = true
     const loadLocataireData = async () => {
       try {
-        const res = await fetch(`${API_BASE}/locataire/me`)
+        const res = await portalApiFetch(`${API_BASE}/locataire/me`)
         if (!res.ok) return
         const payload = await res.json()
         if (!isMounted || !payload?.ok) return
@@ -646,7 +893,7 @@ export default function PortalSectionPage() {
 
     if (locataireContext.tenant?.id) {
       try {
-        const res = await fetch(`${API_BASE}/locataire/me/paiements/regler`, {
+        const res = await portalApiFetch(`${API_BASE}/locataire/me/paiements/regler`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -719,7 +966,7 @@ export default function PortalSectionPage() {
 
     if (locataireContext.tenant?.id) {
       try {
-        const res = await fetch(`${API_BASE}/locataire/me/demandes`, {
+        const res = await portalApiFetch(`${API_BASE}/locataire/me/demandes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -771,7 +1018,7 @@ export default function PortalSectionPage() {
 
   const sendQuittanceByEmail = async (quittanceId) => {
     try {
-      const res = await fetch(`${API_BASE}/quittances/${quittanceId}/send-email`, { method: 'POST' })
+      const res = await portalApiFetch(`${API_BASE}/quittances/${quittanceId}/send-email`, { method: 'POST' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
         setPaymentEmailFeedback(payload?.error || 'Envoi email impossible.')
@@ -832,15 +1079,21 @@ export default function PortalSectionPage() {
       setGestionnaireFeedback('Renseignez au minimum le nom et l email.')
       return
     }
-    if (isAdminPortal && !userForm.agenceId) {
+    const resolvedAgenceUser = isAdminPortal ? userForm.agenceId : isAgencyPortal ? scopedAgenceId : ''
+    if ((isAdminPortal || isAgencyPortal) && !resolvedAgenceUser) {
       setGestionnaireFeedback('Selectionnez une agence de rattachement.')
+      return
+    }
+    if (userIdentityFile && userIdentityFile.size > 3 * 1024 * 1024) {
+      setGestionnaireFeedback("La piece d'identite depasse 3 Mo.")
       return
     }
 
     setGestionnaireSubmitting(true)
     try {
+      const pieceIdentiteFile = userIdentityFile ? await toFilePayload(userIdentityFile) : null
       const endpoint = userForm.type === 'proprietaire' ? 'proprietaires' : 'locataires'
-      const res = await fetch(`${API_BASE}/${endpoint}`, {
+      const res = await portalApiFetch(`${API_BASE}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -851,10 +1104,11 @@ export default function PortalSectionPage() {
           dateNaissance: userForm.dateNaissance || undefined,
           pieceIdentiteType: userForm.pieceIdentiteType.trim() || undefined,
           pieceIdentiteNumero: userForm.pieceIdentiteNumero.trim() || undefined,
+          pieceIdentiteFile,
           adresse: userForm.adresse.trim() || undefined,
           profession: userForm.profession.trim() || undefined,
           revenuMensuel: userForm.revenuMensuel ? Number(userForm.revenuMensuel) : undefined,
-          agenceId: isAdminPortal ? userForm.agenceId : undefined,
+          agenceId: isAdminPortal ? userForm.agenceId : isAgencyPortal ? scopedAgenceId : undefined,
         }),
       })
       const payload = await res.json()
@@ -886,6 +1140,7 @@ export default function PortalSectionPage() {
         revenuMensuel: '',
         agenceId: '',
       })
+      setUserIdentityFile(null)
       setGestionnaireFeedback(`${userForm.type === 'proprietaire' ? 'Proprietaire' : 'Locataire'} cree avec succes.`)
     } catch {
       setGestionnaireFeedback('Connexion impossible au serveur API.')
@@ -904,7 +1159,7 @@ export default function PortalSectionPage() {
     setGestionnaireSubmitting(true)
     try {
       const endpoint = type === 'proprietaire' ? 'proprietaires' : 'locataires'
-      const res = await fetch(`${API_BASE}/${endpoint}/${id}`, { method: 'DELETE' })
+      const res = await portalApiFetch(`${API_BASE}/${endpoint}/${id}`, { method: 'DELETE' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
         setGestionnaireFeedback(payload?.error || 'Suppression impossible.')
@@ -938,7 +1193,7 @@ export default function PortalSectionPage() {
     setGestionnaireSubmitting(true)
     try {
       const endpoint = type === 'proprietaire' ? 'proprietaires' : 'locataires'
-      const res = await fetch(`${API_BASE}/${endpoint}/${id}`, {
+      const res = await portalApiFetch(`${API_BASE}/${endpoint}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -998,14 +1253,17 @@ export default function PortalSectionPage() {
       setGestionnaireFeedback('Renseignez role, email et code.')
       return
     }
-    if (isAdminPortal && accessForm.role === 'gestionnaire' && !accessForm.agenceId) {
+    const accessAgenceId = isAgencyPortal && scopedAgenceId
+      ? scopedAgenceId
+      : accessForm.agenceId
+    if ((isAdminPortal || isAgencyPortal) && accessForm.role === 'gestionnaire' && !accessAgenceId) {
       setGestionnaireFeedback('Selectionnez une agence pour ce gestionnaire.')
       return
     }
 
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/admin/acces`, {
+      const res = await portalApiFetch(`${API_BASE}/admin/acces`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1016,7 +1274,7 @@ export default function PortalSectionPage() {
           poste: accessForm.poste.trim(),
           code: accessForm.code.trim(),
           linkedId: accessForm.linkedId.trim(),
-          agenceId: accessForm.role === 'gestionnaire' ? accessForm.agenceId : undefined,
+          agenceId: accessForm.role === 'gestionnaire' ? accessAgenceId : undefined,
           internalRole: accessForm.role === 'gestionnaire' ? accessForm.internalRole : undefined,
         }),
       })
@@ -1053,7 +1311,7 @@ export default function PortalSectionPage() {
     const nextStatut = accessItem.statut === 'Actif' ? 'Inactif' : 'Actif'
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/admin/acces/${accessItem.id}`, {
+      const res = await portalApiFetch(`${API_BASE}/admin/acces/${accessItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: nextStatut }),
@@ -1080,7 +1338,7 @@ export default function PortalSectionPage() {
     if (!window.confirm('Confirmer la suppression de cet acces ?')) return
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/admin/acces/${accessItem.id}`, { method: 'DELETE' })
+      const res = await portalApiFetch(`${API_BASE}/admin/acces/${accessItem.id}`, { method: 'DELETE' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
         setGestionnaireFeedback(payload?.error || 'Suppression acces impossible.')
@@ -1102,7 +1360,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/admin/acces/${accessItem.id}/reset-code`, { method: 'POST' })
+      const res = await portalApiFetch(`${API_BASE}/admin/acces/${accessItem.id}/reset-code`, { method: 'POST' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
         setGestionnaireFeedback(payload?.error || 'Reinitialisation code impossible.')
@@ -1140,10 +1398,15 @@ export default function PortalSectionPage() {
       setGestionnaireFeedback('Renseignez titre, adresse, proprietaire et loyer.')
       return
     }
+    if (gestionnaireBienImageFiles.some((file) => file.size > 4 * 1024 * 1024)) {
+      setGestionnaireFeedback('Une image depasse 4 Mo. Reduisez la taille puis reessayez.')
+      return
+    }
 
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/biens`, {
+      const images = await Promise.all(gestionnaireBienImageFiles.map((file) => toImageDataUrl(file)))
+      const res = await portalApiFetch(`${API_BASE}/biens`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1167,6 +1430,7 @@ export default function PortalSectionPage() {
           fraisGestionMensuels: bienForm.fraisGestionMensuels ? Number(bienForm.fraisGestionMensuels) : 0,
           taxeFonciereAnnuelle: bienForm.taxeFonciereAnnuelle ? Number(bienForm.taxeFonciereAnnuelle) : 0,
           assuranceAnnuelle: bienForm.assuranceAnnuelle ? Number(bienForm.assuranceAnnuelle) : 0,
+          images,
         }),
       })
       const payload = await res.json()
@@ -1203,6 +1467,8 @@ export default function PortalSectionPage() {
         taxeFonciereAnnuelle: '',
         assuranceAnnuelle: '',
       })
+      setGestionnaireBienImageFiles([])
+      setGestionnaireBienImagePreviews([])
       setGestionnaireFeedback('Bien enregistre avec succes.')
     } catch {
       setGestionnaireFeedback('Connexion impossible au serveur API.')
@@ -1220,7 +1486,7 @@ export default function PortalSectionPage() {
 
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/biens/${ref}`, { method: 'DELETE' })
+      const res = await portalApiFetch(`${API_BASE}/biens/${ref}`, { method: 'DELETE' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) {
         setGestionnaireFeedback(payload?.error || 'Suppression du bien impossible.')
@@ -1250,7 +1516,7 @@ export default function PortalSectionPage() {
     setGestionnaireSubmitting(true)
     try {
       const normalizedStatus = nextStatus.toLowerCase()
-      const res = await fetch(`${API_BASE}/biens/${ref}`, {
+      const res = await portalApiFetch(`${API_BASE}/biens/${ref}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: normalizedStatus }),
@@ -1282,7 +1548,7 @@ export default function PortalSectionPage() {
     const next = !Boolean(current.published)
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/biens/${ref}`, {
+      const res = await portalApiFetch(`${API_BASE}/biens/${ref}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ published: next }),
@@ -1312,7 +1578,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/contrats/signature`, {
+      const res = await portalApiFetch(`${API_BASE}/contrats/signature`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1381,7 +1647,7 @@ export default function PortalSectionPage() {
     const nextStatus = order[(idx + 1 + order.length) % order.length]
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/contrats/${contratId}/status`, {
+      const res = await portalApiFetch(`${API_BASE}/contrats/${contratId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: nextStatus }),
@@ -1410,7 +1676,7 @@ export default function PortalSectionPage() {
     if (!window.confirm('Confirmer la suppression de ce contrat ?')) return
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/contrats/${contratId}`, { method: 'DELETE' })
+      const res = await portalApiFetch(`${API_BASE}/contrats/${contratId}`, { method: 'DELETE' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok || !payload?.ok) {
         setGestionnaireFeedback(payload?.error || 'Suppression du contrat impossible.')
@@ -1435,7 +1701,7 @@ export default function PortalSectionPage() {
     const nextStatus = order[(idx + 1 + order.length) % order.length]
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/${ticket.id}`, {
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/${ticket.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: nextStatus }),
@@ -1461,7 +1727,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/${ticketId}`, {
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/${ticketId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gestionnaireId: gestionnaireId || null }),
@@ -1487,13 +1753,13 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/run`, { method: 'POST' })
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/run`, { method: 'POST' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok || !payload?.ok) {
         setGestionnaireFeedback(payload?.error || 'Execution SLA impossible.')
         return
       }
-      const logsRes = await fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/logs`)
+      const logsRes = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/logs`)
       const logsData = await logsRes.json().catch(() => [])
       if (logsRes.ok && Array.isArray(logsData)) setSlaNotificationLogs(logsData)
       setGestionnaireFeedback(`SLA execute: ${payload.data.notificationsSent} notification(s) envoyee(s).`)
@@ -1511,7 +1777,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`, {
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1542,7 +1808,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`, {
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resetTemplates: true }),
@@ -1569,7 +1835,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/preview`, {
+      const res = await portalApiFetch(`${API_BASE}/gestionnaire/tickets/sla-notifications/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stage }),
@@ -1591,7 +1857,7 @@ export default function PortalSectionPage() {
   const updateProspect = async (prospectId, nextStatus) => {
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/prospects/interets/${prospectId}`, {
+      const res = await portalApiFetch(`${API_BASE}/prospects/interets/${prospectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1618,7 +1884,7 @@ export default function PortalSectionPage() {
   const convertProspectToTenant = async (prospect, goToBail = false) => {
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/prospects/interets/${prospect.id}/convertir-locataire`, {
+      const res = await portalApiFetch(`${API_BASE}/prospects/interets/${prospect.id}/convertir-locataire`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: `Conversion depuis le prospect ${prospect.nom}` }),
@@ -1665,12 +1931,17 @@ export default function PortalSectionPage() {
       setAgenceFeedback('Le nom est obligatoire.')
       return
     }
+    if (agenceActorIdentityFile && agenceActorIdentityFile.size > 3 * 1024 * 1024) {
+      setAgenceFeedback("La piece d'identite depasse 3 Mo.")
+      return
+    }
     setAgenceSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/agence/${actorType}`, {
+      const pieceIdentiteFile = agenceActorIdentityFile ? await toFilePayload(agenceActorIdentityFile) : null
+      const res = await portalApiFetch(`${API_BASE}/agence/${actorType}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...agenceAuthHeaders },
-        body: JSON.stringify({ ...agenceActorForm }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...agenceActorForm, pieceIdentiteFile }),
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok || !payload?.ok) {
@@ -1679,6 +1950,7 @@ export default function PortalSectionPage() {
       }
       setAgenceWorkspace((prev) => ({ ...prev, [actorType]: [payload.data, ...prev[actorType]] }))
       setAgenceActorForm({ nom: '', email: '', telephone: '' })
+      setAgenceActorIdentityFile(null)
       setAgenceFeedback('Creation effectuee.')
     } catch {
       setAgenceFeedback('Connexion API agence impossible.')
@@ -1691,7 +1963,7 @@ export default function PortalSectionPage() {
     if (!window.confirm('Confirmer la suppression ?')) return
     setAgenceSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/agence/${actorType}/${id}`, { method: 'DELETE', headers: agenceAuthHeaders })
+      const res = await portalApiFetch(`${API_BASE}/agence/${actorType}/${id}`, { method: 'DELETE' })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok || !payload?.ok) {
         setAgenceFeedback(payload?.error || 'Suppression impossible.')
@@ -1710,9 +1982,9 @@ export default function PortalSectionPage() {
     setAgenceSubmitting(true)
     try {
       const nextStatus = item.statut === 'Actif' ? 'Inactif' : 'Actif'
-      const res = await fetch(`${API_BASE}/agence/${actorType}/${item.id}`, {
+      const res = await portalApiFetch(`${API_BASE}/agence/${actorType}/${item.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...agenceAuthHeaders },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: nextStatus }),
       })
       const payload = await res.json().catch(() => ({}))
@@ -1739,9 +2011,9 @@ export default function PortalSectionPage() {
     }
     setAgenceSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/agence/gestionnaires`, {
+      const res = await portalApiFetch(`${API_BASE}/agence/gestionnaires`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...agenceAuthHeaders },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...agenceGestionnaireForm }),
       })
       const payload = await res.json().catch(() => ({}))
@@ -1764,16 +2036,22 @@ export default function PortalSectionPage() {
       setAgenceFeedback('Renseignez titre, adresse et proprietaire.')
       return
     }
+    if (agenceBienImageFiles.some((file) => file.size > 4 * 1024 * 1024)) {
+      setAgenceFeedback('Une image depasse 4 Mo. Reduisez la taille puis reessayez.')
+      return
+    }
     setAgenceSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/agence/biens`, {
+      const images = await Promise.all(agenceBienImageFiles.map((file) => toImageDataUrl(file)))
+      const res = await portalApiFetch(`${API_BASE}/agence/biens`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...agenceAuthHeaders },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...agenceBienForm,
           loyerMensuel: Number(agenceBienForm.loyerMensuel || 0),
           chargesMensuelles: Number(agenceBienForm.chargesMensuelles || 0),
           fraisGestionMensuels: Number(agenceBienForm.fraisGestionMensuels || 0),
+          images,
         }),
       })
       const payload = await res.json().catch(() => ({}))
@@ -1793,6 +2071,8 @@ export default function PortalSectionPage() {
         chargesMensuelles: '',
         fraisGestionMensuels: '',
       })
+      setAgenceBienImageFiles([])
+      setAgenceBienImagePreviews([])
       setAgenceFeedback('Bien cree.')
     } catch {
       setAgenceFeedback('Connexion API agence impossible.')
@@ -1804,9 +2084,9 @@ export default function PortalSectionPage() {
   const toggleAgenceBien = async (item, patch) => {
     setAgenceSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/agence/biens/${item.id}`, {
+      const res = await portalApiFetch(`${API_BASE}/agence/biens/${item.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...agenceAuthHeaders },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...patch }),
       })
       const payload = await res.json().catch(() => ({}))
@@ -1828,7 +2108,7 @@ export default function PortalSectionPage() {
 
   const loadAdminAgences = async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/agences`)
+      const res = await portalApiFetch(`${API_BASE}/admin/agences`)
       const payload = await res.json().catch(() => ([]))
       if (res.ok && Array.isArray(payload)) setAdminAgences(payload)
     } catch {
@@ -1843,7 +2123,7 @@ export default function PortalSectionPage() {
     }
     setGestionnaireSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/admin/agences`, {
+      const res = await portalApiFetch(`${API_BASE}/admin/agences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adminAgenceForm),
@@ -2224,6 +2504,17 @@ export default function PortalSectionPage() {
           ))}
         </ul>
       )
+    } else if (section === 'reporting') {
+      content = (
+        <Suspense fallback={<InlineFeedback message="Chargement du reporting..." />}>
+          <PortalReportingContent
+            slug="locataire"
+            paymentHistory={paymentHistory}
+            pendingPayments={pendingPayments}
+            demandes={demandes}
+          />
+        </Suspense>
+      )
     }
   }
 
@@ -2453,10 +2744,21 @@ export default function PortalSectionPage() {
           />
         </div>
       )
+    } else if (section === 'reporting') {
+      content = (
+        <Suspense fallback={<InlineFeedback message="Chargement du reporting..." />}>
+          <PortalReportingContent
+            slug="proprietaire"
+            proprietaireBiens={proprietaireData?.biens || []}
+            proprietaireRevenus={proprietaireData?.revenus || []}
+            proprietaireHistorique={proprietaireData?.['historique-paiements'] || []}
+          />
+        </Suspense>
+      )
     }
   }
 
-  if (slug === 'agence' || slug === 'gestionnaire') {
+  if (slug === 'gestionnaire') {
     const normalizedSearchAgence = agenceSearch.trim().toLowerCase()
     const agenceFilter = (rows, fields) =>
       !normalizedSearchAgence
@@ -2513,6 +2815,18 @@ export default function PortalSectionPage() {
                 className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
               />
             </label>
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Piece d'identite (fichier, optionnel)</span>
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp"
+                onChange={(e) => setAgenceActorIdentityFile(e.target.files?.[0] || null)}
+                className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {agenceActorIdentityFile ? `Selectionne: ${agenceActorIdentityFile.name}` : 'Formats: PDF/JPG/PNG/WEBP, max 3 Mo'}
+              </p>
+            </label>
             <button type="button" onClick={() => submitAgenceActor(actorType)} disabled={agenceSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
               {agenceSubmitting ? 'Enregistrement...' : `Ajouter ${actorType === 'proprietaires' ? 'proprietaire' : 'locataire'}`}
             </button>
@@ -2524,6 +2838,15 @@ export default function PortalSectionPage() {
               { key: 'nom', label: 'Nom' },
               { key: 'email', label: 'Email' },
               { key: 'telephone', label: 'Telephone' },
+              {
+                key: 'piece',
+                label: 'Piece ID',
+                render: (r) => (
+                  r.pieceIdentiteFile?.dataUrl
+                    ? <a href={r.pieceIdentiteFile.dataUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:underline">{r.pieceIdentiteFile.name || 'Voir'}</a>
+                    : <span className="text-gray-500">-</span>
+                ),
+              },
               { key: 'statut', label: 'Statut' },
               {
                 key: 'actions',
@@ -2606,6 +2929,92 @@ export default function PortalSectionPage() {
             </select>
             <input type="number" min="0" value={agenceBienForm.loyerMensuel} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, loyerMensuel: e.target.value }))} placeholder="Loyer mensuel" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
             <input type="number" min="0" value={agenceBienForm.chargesMensuelles} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, chargesMensuelles: e.target.value }))} placeholder="Charges mensuelles" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Images du bien (optionnel)</span>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setAgenceBienDragOver(true)
+                }}
+                onDragLeave={() => setAgenceBienDragOver(false)}
+                onDrop={async (e) => {
+                  e.preventDefault()
+                  setAgenceBienDragOver(false)
+                  const dropped = Array.from(e.dataTransfer.files || []).filter((file) => file.type.startsWith('image/'))
+                  if (dropped.length === 0) return
+                  await applyAgenceBienImages(dropped)
+                }}
+                className={`mt-1 rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
+                  agenceBienDragOver ? 'border-gold-400 bg-gold-500/10 text-gold-200' : 'border-night-500 bg-night-950/30 text-gray-500'
+                }`}
+              >
+                Glissez-déposez vos images ici ou utilisez le sélecteur ci-dessous.
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={async (e) => {
+                  const selected = Array.from(e.target.files || [])
+                  await applyAgenceBienImages(selected)
+                }}
+                className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {agenceBienImageFiles.length > 0
+                  ? `${agenceBienImageFiles.length} image(s): ${agenceBienImageFiles.map((f) => f.name).join(', ')}`
+                  : 'Jusqu a 8 images (max 4 Mo par image)'}
+              </p>
+              {agenceBienImagePreviews.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {agenceBienImagePreviews.map((preview, idx) => (
+                    <div key={`${agenceBienImageFiles[idx]?.name || idx}-${idx}`} className="rounded-lg border border-night-600 bg-night-950/40 p-2">
+                      <img
+                        src={preview}
+                        alt={`Apercu image ${idx + 1}`}
+                        className="w-full h-24 object-cover rounded"
+                        loading="lazy"
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[10px] text-gray-400 truncate">
+                          {agenceBienImageFiles[idx]?.name || `Image ${idx + 1}`}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAgenceBienImageFiles((prev) => prev.filter((_, i) => i !== idx))
+                            setAgenceBienImagePreviews((prev) => prev.filter((_, i) => i !== idx))
+                          }}
+                          className="text-[10px] text-red-300 hover:text-red-200"
+                        >
+                          Retirer
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveAgenceBienImage(idx, idx - 1)}
+                            disabled={idx === 0}
+                            className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
+                            title="Monter"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveAgenceBienImage(idx, idx + 1)}
+                            disabled={idx === agenceBienImagePreviews.length - 1}
+                            className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
+                            title="Descendre"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </label>
             <button type="button" onClick={submitAgenceBien} disabled={agenceSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
               Ajouter bien
             </button>
@@ -2637,6 +3046,16 @@ export default function PortalSectionPage() {
             rows={paginated.rows}
           />
         </div>
+      )
+    } else if (section === 'reporting') {
+      content = (
+        <Suspense fallback={<InlineFeedback message="Chargement du reporting..." />}>
+          <PortalReportingContent
+            slug={slug}
+            agenceWorkspace={agenceWorkspace}
+            gestionnaireTickets={slug === 'gestionnaire' ? gestionnaireTickets : []}
+          />
+        </Suspense>
       )
     }
   }
@@ -2690,10 +3109,12 @@ export default function PortalSectionPage() {
       content = (
         <div className="space-y-8">
           <p className="text-sm text-gray-400 max-w-3xl">
-            Vue transverse immobilier : impayes, echeances de baux, vacance et hygiene des acces. Les indicateurs
-            proviennent des donnees reelles chargees par l API admin.
+            {isAgencyPortal
+              ? 'Pilotage limite a votre agence : impayes, echeances de baux et signaux operationnels.'
+              : 'Vue transverse immobilier : impayes, echeances de baux, vacance et hygiene des acces. Les indicateurs proviennent des donnees reelles chargees par l API admin.'}
           </p>
-          <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 md:grid-cols-3">
+          <div className={`rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 ${isAgencyPortal ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {!isAgencyPortal && (
             <label className="text-sm">
               <span className="text-gray-400">Agence</span>
               <select
@@ -2707,6 +3128,7 @@ export default function PortalSectionPage() {
                 ))}
               </select>
             </label>
+            )}
             <label className="text-sm">
               <span className="text-gray-400">Severite</span>
               <select
@@ -2732,10 +3154,17 @@ export default function PortalSectionPage() {
                 <option value="365">12 mois</option>
               </select>
             </label>
-            <div className="md:col-span-3 flex justify-end">
+            <div className={`${isAgencyPortal ? 'md:col-span-2' : 'md:col-span-3'} flex justify-end`}>
               <button
                 type="button"
-                onClick={() => setAdminBiFilters((prev) => ({ ...prev, agenceId: 'all', severity: 'all', horizon: '90' }))}
+                onClick={() =>
+                  setAdminBiFilters((prev) => ({
+                    ...prev,
+                    agenceId: isAgencyPortal && scopedAgenceId ? scopedAgenceId : 'all',
+                    severity: 'all',
+                    horizon: '90',
+                  }))
+                }
                 className="rounded-lg border border-night-500 px-3 py-2 text-xs text-gray-300 hover:border-gold-500/40 hover:text-gold-300 transition-colors"
               >
                 Reinitialiser les filtres
@@ -2834,6 +3263,175 @@ export default function PortalSectionPage() {
               rows={filteredExpiring}
             />
           </div>
+        </div>
+      )
+    } else if (section === 'pilotage-locatif') {
+      const runLc = async (path, body, method = 'POST') => {
+        setLifecycleFeedback('Traitement...')
+        try {
+          const res = await portalApiFetch(`${API_BASE}/admin/lifecycle${path}`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+          })
+          const payload = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            setLifecycleFeedback(payload?.error || `Erreur ${res.status}`)
+            return
+          }
+          setLifecycleFeedback(payload?.data?.created != null
+            ? `${payload.data.created} ligne(s) creee(s).`
+            : payload?.data?.marked != null
+              ? `${payload.data.marked} paiement(s) en retard.`
+              : payload?.data?.processed != null
+                ? `${payload.data.processed} notification(s) traitee(s).`
+                : 'Operation terminee.')
+          if (path === '/compliance/alerts' || method === 'GET') {
+            setLifecycleAlerts(Array.isArray(payload.data?.alerts) ? payload.data.alerts : [])
+          }
+        } catch {
+          setLifecycleFeedback('API indisponible.')
+        }
+      }
+      content = (
+        <div className="space-y-8">
+          <p className="text-sm text-gray-400 max-w-3xl">
+            Orchestration locative : generation des echéances depuis les baux actifs, relances, conformite pieces et echeances de baux,
+            reversements proprietaires, file de notifications (stub), export RGPD JSON. Les exports volumineux restent du ressort du stockage objet en production.
+          </p>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-5 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <label className="text-sm">
+              <span className="text-gray-400">Mois (echeances)</span>
+              <input
+                type="month"
+                value={lifecycleMonth}
+                onChange={(e) => setLifecycleMonth(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              />
+            </label>
+            <div className="flex items-end gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => runLc('/echeances/generate', { yearMonth: lifecycleMonth })}
+                className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900"
+              >
+                Generer echeances
+              </button>
+              <button type="button" onClick={() => runLc('/echeances/mark-overdue', {})} className="rounded-lg border border-night-500 px-4 py-2 text-sm text-gray-300">
+                Marquer retards
+              </button>
+              <button type="button" onClick={() => runLc('/notifications/process', {})} className="rounded-lg border border-night-500 px-4 py-2 text-sm text-gray-300">
+                Traiter notifications
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLifecycleFeedback('...')
+                  try {
+                    const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/compliance/alerts`)
+                    const payload = await res.json()
+                    if (res.ok) setLifecycleAlerts(payload.data?.alerts || [])
+                    setLifecycleFeedback(res.ok ? 'Alertes actualisees.' : payload?.error || 'Erreur')
+                  } catch {
+                    setLifecycleFeedback('API indisponible.')
+                  }
+                }}
+                className="rounded-lg border border-emerald-500/40 px-4 py-2 text-sm text-emerald-300"
+              >
+                Rafraichir alertes
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-5">
+            <h3 className="font-semibold text-white mb-3">Alertes conformite & documents ({lifecycleAlerts.length})</h3>
+            {lifecycleAlerts.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucune alerte dans les 90 prochains jours (ou donnees incompletes).</p>
+            ) : (
+              <SimpleTable
+                rowKey={(r, i) => `${r.type}-${i}`}
+                columns={[
+                  { key: 'type', label: 'Type' },
+                  { key: 'severity', label: 'Gravite' },
+                  { key: 'message', label: 'Message' },
+                  { key: 'dateRef', label: 'Date ref.' },
+                ]}
+                rows={lifecycleAlerts}
+              />
+            )}
+          </div>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-5 grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold text-white mb-3">Reversement proprietaire</h3>
+              <select
+                value={lifecycleRevOwner}
+                onChange={(e) => setLifecycleRevOwner(e.target.value)}
+                className="w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200 mb-2"
+              >
+                <option value="">Selectionner proprietaire</option>
+                {gestionnaireProprietaires.map((o) => (
+                  <option key={o.id} value={o.id}>{o.nom}</option>
+                ))}
+              </select>
+              <input
+                value={lifecycleRevPeriod}
+                onChange={(e) => setLifecycleRevPeriod(e.target.value)}
+                placeholder="Periode ex: mars 2026"
+                className="w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200 mb-2"
+              />
+              <button
+                type="button"
+                onClick={() => lifecycleRevOwner && lifecycleRevPeriod && runLc('/reversements', {
+                  proprietaireId: lifecycleRevOwner,
+                  periode: lifecycleRevPeriod.trim(),
+                })}
+                className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-40"
+                disabled={!lifecycleRevOwner || !lifecycleRevPeriod.trim()}
+              >
+                Calculer reversement
+              </button>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white mb-3">Export RGPD (locataire)</h3>
+              <input
+                value={lifecycleGdprId}
+                onChange={(e) => setLifecycleGdprId(e.target.value)}
+                placeholder="ID locataire"
+                className="w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200 mb-2"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!lifecycleGdprId.trim()) return
+                  setLifecycleFeedback('Export...')
+                  try {
+                    const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/gdpr/export-tenant`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ locataireId: lifecycleGdprId.trim() }),
+                    })
+                    const payload = await res.json()
+                    if (!res.ok) {
+                      setLifecycleFeedback(payload?.error || 'Erreur export')
+                      return
+                    }
+                    setLifecycleGdprJson(JSON.stringify(payload.data, null, 2))
+                    setLifecycleFeedback('Export genere (JSON ci-dessous).')
+                  } catch {
+                    setLifecycleFeedback('API indisponible.')
+                  }
+                }}
+                className="rounded-lg border border-sky-500/40 px-4 py-2 text-sm text-sky-300"
+              >
+                Generer bundle JSON
+              </button>
+              {lifecycleGdprJson ? (
+                <pre className="mt-3 max-h-56 overflow-auto rounded-lg bg-night-950/80 p-3 text-[10px] text-gray-400 whitespace-pre-wrap">
+                  {lifecycleGdprJson}
+                </pre>
+              ) : null}
+            </div>
+          </div>
+          <InlineFeedback message={lifecycleFeedback} />
         </div>
       )
     } else if (section === 'prospects') {
@@ -2988,6 +3586,18 @@ export default function PortalSectionPage() {
                   className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200 outline-none focus:border-gold-500/50"
                 />
               </label>
+              <label className="text-sm md:col-span-2">
+                <span className="text-gray-400">Scan piece d identite (optionnel)</span>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  onChange={(e) => setUserIdentityFile(e.target.files?.[0] || null)}
+                  className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {userIdentityFile ? `Selectionne: ${userIdentityFile.name}` : 'PDF ou image, max 3 Mo'}
+                </p>
+              </label>
               <label className="text-sm">
                 <span className="text-gray-400">Profession / Situation</span>
                 <input
@@ -3033,6 +3643,11 @@ export default function PortalSectionPage() {
                   </select>
                 </label>
               )}
+              {isAgencyPortal && scopedAgenceId && (
+                <p className="text-sm text-gray-500 md:col-span-2">
+                  Rattachement automatique a votre agence (profil directeur).
+                </p>
+              )}
             </div>
             <div className="mt-4 flex items-center gap-3">
               <button
@@ -3055,6 +3670,15 @@ export default function PortalSectionPage() {
               { key: 'nom', label: 'Nom' },
               { key: 'email', label: 'Email' },
               { key: 'telephone', label: 'Telephone' },
+              {
+                key: 'piece',
+                label: 'Piece ID',
+                render: (r) => (
+                  r.pieceIdentiteFile?.dataUrl
+                    ? <a href={r.pieceIdentiteFile.dataUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:underline">{r.pieceIdentiteFile.name || 'Voir'}</a>
+                    : <span className="text-gray-500">-</span>
+                ),
+              },
               { key: 'statut', label: 'Statut', render: (r) => <span className={r.statut === 'Actif' ? 'text-emerald-400' : 'text-amber-400'}>{r.statut}</span> },
               {
                 key: 'actions',
@@ -3269,10 +3893,19 @@ export default function PortalSectionPage() {
         </div>
       )
     } else if (section === 'agences') {
-      const filteredRows = filterBySearch(adminAgences, ['id', 'nom', 'email', 'telephone', 'statut'])
+      const scopedAgences = isAgencyPortal && scopedAgenceId
+        ? adminAgences.filter((a) => String(a.id) === scopedAgenceId)
+        : adminAgences
+      const filteredRows = filterBySearch(scopedAgences, ['id', 'nom', 'email', 'telephone', 'statut'])
       const paginated = paginate(filteredRows)
       content = (
         <div className="space-y-6">
+          {isAgencyPortal && (
+            <p className="text-sm text-gray-400 max-w-2xl">
+              Fiche et informations de votre structure — les autres agences du reseau ne sont pas visibles ici.
+            </p>
+          )}
+          {isAdminPortal && (
           <div className="rounded-xl border border-night-600 bg-night-800/30 p-5">
             <h3 className="font-semibold text-white mb-4">Creer une agence (admin plateforme)</h3>
             <div className="grid md:grid-cols-2 gap-4">
@@ -3292,6 +3925,7 @@ export default function PortalSectionPage() {
               Creer agence
             </button>
           </div>
+          )}
           <SimpleTable
             rowKey={(r) => r.id}
             columns={[
@@ -3663,6 +4297,92 @@ export default function PortalSectionPage() {
                   className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200 outline-none focus:border-gold-500/50"
                 />
               </label>
+              <label className="text-sm md:col-span-2">
+                <span className="text-gray-400">Images du bien (optionnel)</span>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setGestionnaireBienDragOver(true)
+                  }}
+                  onDragLeave={() => setGestionnaireBienDragOver(false)}
+                  onDrop={async (e) => {
+                    e.preventDefault()
+                    setGestionnaireBienDragOver(false)
+                    const dropped = Array.from(e.dataTransfer.files || []).filter((file) => file.type.startsWith('image/'))
+                    if (dropped.length === 0) return
+                    await applyGestionnaireBienImages(dropped)
+                  }}
+                  className={`mt-1 rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
+                    gestionnaireBienDragOver ? 'border-gold-400 bg-gold-500/10 text-gold-200' : 'border-night-500 bg-night-950/30 text-gray-500'
+                  }`}
+                >
+                  Glissez-deposez vos images ici ou utilisez le selecteur ci-dessous.
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={async (e) => {
+                    const selected = Array.from(e.target.files || [])
+                    await applyGestionnaireBienImages(selected)
+                  }}
+                  className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {gestionnaireBienImageFiles.length > 0
+                    ? `${gestionnaireBienImageFiles.length} image(s): ${gestionnaireBienImageFiles.map((f) => f.name).join(', ')}`
+                    : 'Jusqu a 8 images (max 4 Mo par image)'}
+                </p>
+                {gestionnaireBienImagePreviews.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {gestionnaireBienImagePreviews.map((preview, idx) => (
+                      <div key={`${gestionnaireBienImageFiles[idx]?.name || idx}-${idx}`} className="rounded-lg border border-night-600 bg-night-950/40 p-2">
+                        <img
+                          src={preview}
+                          alt={`Apercu image ${idx + 1}`}
+                          className="w-full h-24 object-cover rounded"
+                          loading="lazy"
+                        />
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <p className="text-[10px] text-gray-400 truncate">
+                            {gestionnaireBienImageFiles[idx]?.name || `Image ${idx + 1}`}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGestionnaireBienImageFiles((prev) => prev.filter((_, i) => i !== idx))
+                              setGestionnaireBienImagePreviews((prev) => prev.filter((_, i) => i !== idx))
+                            }}
+                            className="text-[10px] text-red-300 hover:text-red-200"
+                          >
+                            Retirer
+                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveGestionnaireBienImage(idx, idx - 1)}
+                              disabled={idx === 0}
+                              className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
+                              title="Monter"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveGestionnaireBienImage(idx, idx + 1)}
+                              disabled={idx === gestionnaireBienImagePreviews.length - 1}
+                              className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
+                              title="Descendre"
+                            >
+                              ↓
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </label>
             </div>
             <button
               type="button"
@@ -3900,6 +4620,313 @@ export default function PortalSectionPage() {
             total={paginated.totalPages}
             onPrev={() => setGestionnairePage((p) => Math.max(1, p - 1))}
             onNext={() => setGestionnairePage((p) => Math.min(paginated.totalPages, p + 1))}
+          />
+        </div>
+      )
+    } else if (section === 'etats-lieux') {
+      const reloadLifecycleLists = async () => {
+        try {
+          const [eRes, cRes] = await Promise.all([
+            portalApiFetch(`${API_BASE}/admin/lifecycle/etats-lieux`),
+            portalApiFetch(`${API_BASE}/admin/lifecycle/cautions`),
+          ])
+          const [ePayload, cPayload] = await Promise.all([eRes.json(), cRes.json()])
+          if (eRes.ok && Array.isArray(ePayload.data)) setEdlRows(ePayload.data)
+          if (cRes.ok && Array.isArray(cPayload.data)) setCautionRows(cPayload.data)
+        } catch {
+          setEdlFeedback('Actualisation impossible.')
+        }
+      }
+      const submitEdl = async () => {
+        if (!edlForm.contratId) {
+          setEdlFeedback('Selectionnez un contrat.')
+          return
+        }
+        setEdlFeedback('Enregistrement...')
+        try {
+          const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/etats-lieux`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contratId: edlForm.contratId,
+              type: edlForm.type,
+              observations: edlForm.observations.trim(),
+              statut: edlForm.statut,
+              checklist: [],
+              photos: [],
+            }),
+          })
+          const payload = await res.json()
+          if (!res.ok) {
+            setEdlFeedback(payload?.error || 'Creation refusee.')
+            return
+          }
+          setEdlFeedback('Etat des lieux cree.')
+          setEdlForm((prev) => ({ ...prev, observations: '' }))
+          await reloadLifecycleLists()
+        } catch {
+          setEdlFeedback('API indisponible.')
+        }
+      }
+      const deleteEdl = async (id) => {
+        if (!window.confirm('Supprimer cet etat des lieux ?')) return
+        try {
+          const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/etats-lieux/${id}`, { method: 'DELETE' })
+          const payload = await res.json()
+          if (!res.ok) {
+            setEdlFeedback(payload?.error || 'Suppression impossible.')
+            return
+          }
+          setEdlFeedback('Supprime.')
+          await reloadLifecycleLists()
+        } catch {
+          setEdlFeedback('API indisponible.')
+        }
+      }
+      content = (
+        <div className="space-y-6">
+          <p className="text-sm text-gray-400 max-w-3xl">
+            Creez un etat des lieux (entree ou sortie) rattache a un bail existant. Les photos peuvent etre ajoutees ensuite via l API ou en collant des URLs dans les champs etendus (evolution).
+          </p>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-5 grid md:grid-cols-2 gap-4">
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Contrat</span>
+              <select
+                value={edlForm.contratId}
+                onChange={(e) => setEdlForm((prev) => ({ ...prev, contratId: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              >
+                <option value="">Selectionner un contrat</option>
+                {gestionnaireContrats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} — {c.bien} / {c.locataire}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="text-gray-400">Type</span>
+              <select
+                value={edlForm.type}
+                onChange={(e) => setEdlForm((prev) => ({ ...prev, type: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              >
+                <option value="entree">Entree</option>
+                <option value="sortie">Sortie</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="text-gray-400">Statut</span>
+              <select
+                value={edlForm.statut}
+                onChange={(e) => setEdlForm((prev) => ({ ...prev, statut: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              >
+                <option value="brouillon">Brouillon</option>
+                <option value="finalise">Finalise</option>
+                <option value="signe">Signe</option>
+              </select>
+            </label>
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Observations</span>
+              <textarea
+                rows={3}
+                value={edlForm.observations}
+                onChange={(e) => setEdlForm((prev) => ({ ...prev, observations: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+                placeholder="Compte-rendu, reserves, etc."
+              />
+            </label>
+            <div className="md:col-span-2 flex flex-wrap gap-2">
+              <button type="button" onClick={submitEdl} disabled={gestionnaireSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
+                Enregistrer l etat des lieux
+              </button>
+              <button type="button" onClick={reloadLifecycleLists} className="rounded-lg border border-night-500 px-4 py-2 text-sm text-gray-300">
+                Actualiser la liste
+              </button>
+            </div>
+          </div>
+          <InlineFeedback message={edlFeedback} />
+          <SimpleTable
+            rowKey={(r) => r.id}
+            columns={[
+              { key: 'id', label: 'ID' },
+              { key: 'contratId', label: 'Contrat' },
+              { key: 'type', label: 'Type' },
+              { key: 'statut', label: 'Statut' },
+              {
+                key: 'observations',
+                label: 'Observations',
+                render: (r) => <span className="line-clamp-2 max-w-xs">{r.observations || '—'}</span>,
+              },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (r) => (
+                  <button type="button" onClick={() => deleteEdl(r.id)} className="text-xs text-red-400 hover:underline">
+                    Supprimer
+                  </button>
+                ),
+              },
+            ]}
+            rows={edlRows}
+          />
+        </div>
+      )
+    } else if (section === 'cautions') {
+      const reloadCautionLists = async () => {
+        try {
+          const cRes = await portalApiFetch(`${API_BASE}/admin/lifecycle/cautions`)
+          const cPayload = await cRes.json()
+          if (cRes.ok && Array.isArray(cPayload.data)) setCautionRows(cPayload.data)
+        } catch {
+          setCautionFeedback('Actualisation impossible.')
+        }
+      }
+      const submitCaution = async () => {
+        if (!cautionForm.contratId) {
+          setCautionFeedback('Selectionnez un contrat.')
+          return
+        }
+        setCautionFeedback('Enregistrement...')
+        try {
+          const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/cautions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contratId: cautionForm.contratId,
+              montantEncaisse: cautionForm.montantEncaisse ? Number(cautionForm.montantEncaisse) : undefined,
+              statut: cautionForm.statut,
+              notes: cautionForm.notes.trim(),
+              lignesRetenue: [],
+            }),
+          })
+          const payload = await res.json()
+          if (!res.ok) {
+            setCautionFeedback(payload?.error || 'Creation refusee.')
+            return
+          }
+          setCautionFeedback('Caution enregistree.')
+          setCautionForm((prev) => ({ ...prev, montantEncaisse: '', notes: '' }))
+          await reloadCautionLists()
+        } catch {
+          setCautionFeedback('API indisponible.')
+        }
+      }
+      const patchCautionStatut = async (id, statut) => {
+        try {
+          const res = await portalApiFetch(`${API_BASE}/admin/lifecycle/cautions/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ statut }),
+          })
+          const payload = await res.json()
+          if (!res.ok) {
+            setCautionFeedback(payload?.error || 'Mise a jour impossible.')
+            return
+          }
+          await reloadCautionLists()
+        } catch {
+          setCautionFeedback('API indisponible.')
+        }
+      }
+      content = (
+        <div className="space-y-6">
+          <p className="text-sm text-gray-400 max-w-3xl">
+            Suivi du depot de garantie par bail : montant encaisse, statut (detenu, restitution partielle ou cloture). Les retenues detaillees peuvent etre saisies via l API ou enrichies ulterieurement.
+          </p>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-5 grid md:grid-cols-2 gap-4">
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Contrat</span>
+              <select
+                value={cautionForm.contratId}
+                onChange={(e) => setCautionForm((prev) => ({ ...prev, contratId: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              >
+                <option value="">Selectionner un contrat</option>
+                {gestionnaireContrats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} — {c.bien} / {c.locataire}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="text-gray-400">Montant encaisse (GNF)</span>
+              <input
+                type="number"
+                min="0"
+                value={cautionForm.montantEncaisse}
+                onChange={(e) => setCautionForm((prev) => ({ ...prev, montantEncaisse: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+                placeholder="Laisser vide pour reprendre le depot du bail"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="text-gray-400">Statut initial</span>
+              <select
+                value={cautionForm.statut}
+                onChange={(e) => setCautionForm((prev) => ({ ...prev, statut: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              >
+                <option value="detenu">Detenu</option>
+                <option value="restitue_partiel">Restitue partiellement</option>
+                <option value="clos">Clos</option>
+              </select>
+            </label>
+            <label className="text-sm md:col-span-2">
+              <span className="text-gray-400">Notes</span>
+              <textarea
+                rows={2}
+                value={cautionForm.notes}
+                onChange={(e) => setCautionForm((prev) => ({ ...prev, notes: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+              />
+            </label>
+            <div className="md:col-span-2 flex gap-2">
+              <button type="button" onClick={submitCaution} disabled={gestionnaireSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
+                Enregistrer la caution
+              </button>
+              <button type="button" onClick={reloadCautionLists} className="rounded-lg border border-night-500 px-4 py-2 text-sm text-gray-300">
+                Actualiser
+              </button>
+            </div>
+          </div>
+          <InlineFeedback message={cautionFeedback} />
+          <SimpleTable
+            rowKey={(r) => r.id}
+            columns={[
+              { key: 'id', label: 'ID' },
+              { key: 'contratId', label: 'Contrat' },
+              {
+                key: 'montantEncaisse',
+                label: 'Montant (GNF)',
+                render: (r) => (
+                  <span>{Number(r.montantEncaisse || 0).toLocaleString('fr-FR')}</span>
+                ),
+              },
+              {
+                key: 'statut',
+                label: 'Statut',
+                render: (r) => (
+                  <select
+                    value={r.statut || 'detenu'}
+                    onChange={(e) => patchCautionStatut(r.id, e.target.value)}
+                    className="rounded border border-night-600 bg-night-900 px-2 py-1 text-xs text-gray-200"
+                  >
+                    <option value="detenu">Detenu</option>
+                    <option value="restitue_partiel">Restitue partiellement</option>
+                    <option value="clos">Clos</option>
+                  </select>
+                ),
+              },
+              {
+                key: 'notes',
+                label: 'Notes',
+                render: (r) => <span className="line-clamp-2 max-w-xs">{r.notes || '—'}</span>,
+              },
+            ]}
+            rows={cautionRows}
           />
         </div>
       )
@@ -4212,7 +5239,6 @@ export default function PortalSectionPage() {
       const totalGenerees = monthlyRows.reduce((sum, row) => sum + Number(row.generees || 0), 0)
       const totalRelances = monthlyRows.reduce((sum, row) => sum + Number(row.relances || 0), 0)
       const totalErreurs = monthlyRows.reduce((sum, row) => sum + Number(row.erreurs || 0), 0)
-      const maxGenerees = Math.max(...monthlyRows.map((row) => Number(row.generees || 0)), 1)
       const byAgenceRows = Array.isArray(adminOverview.byAgence) ? adminOverview.byAgence : []
       const filteredByAgenceRows = byAgenceRows.filter((row) => {
         const matchesAgency = adminBiFilters.agenceId === 'all' || row.agenceId === adminBiFilters.agenceId
@@ -4228,6 +5254,11 @@ export default function PortalSectionPage() {
 
       content = (
         <div className="space-y-5">
+          {isAgencyPortal && (
+            <p className="text-sm text-gray-500">
+              Reporting limite a votre agence (filtres multi-agences reserves au pilotage plateforme).
+            </p>
+          )}
           {isAdminPortal && (
             <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 md:grid-cols-4">
               <label className="text-sm">
@@ -4297,39 +5328,20 @@ export default function PortalSectionPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-night-600 bg-gradient-to-br from-night-800 to-night-900 p-6">
-            <h3 className="font-semibold text-white mb-4">Evolution des quittances generees</h3>
-            <div className="h-48 rounded-lg bg-night-700/50 border border-night-600 flex items-end justify-between gap-2 px-4 pb-3">
-              {monthlyRows.length > 0
-                ? monthlyRows.map((row) => {
-                  const generated = Number(row.generees || 0)
-                  const height = Math.max(8, Math.round((generated / maxGenerees) * 120))
-                  return (
-                    <div key={row.periode} className="flex-1 min-w-0 flex flex-col items-center gap-2">
-                      <div className="h-32 w-full flex items-end justify-center">
-                        <div className="w-full max-w-[44px] rounded-t bg-gradient-to-t from-gold-600/40 to-gold-400/80" style={{ height: `${height}px` }} />
-                      </div>
-                      <span className="text-[10px] text-gray-400 truncate">{row.periode}</span>
-                    </div>
-                  )
-                })
-                : [40, 65, 45, 80, 55, 70].map((h, i) => (
-                  <div key={i} className="flex-1 min-w-0 flex flex-col items-center gap-2">
-                    <div className="h-32 w-full flex items-end justify-center">
-                      <div className="w-full max-w-[44px] rounded-t bg-gradient-to-t from-gold-600/40 to-gold-400/80" style={{ height: `${h}px` }} />
-                    </div>
-                    <span className="text-[10px] text-gray-500">M{i + 1}</span>
-                  </div>
-                ))}
-            </div>
-            <a
-              href={`${API_BASE}/gestionnaire/reporting/export.csv`}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gold-500/20 border border-gold-500/40 px-4 py-2 text-sm text-gold-300"
-            >
-              <Download size={16} />
-              Export CSV reel
-            </a>
-          </div>
+          <Suspense fallback={<InlineFeedback message="Chargement des visualisations BI..." />}>
+            <AdminReportingVisuals
+              monthlyRows={monthlyRows}
+              totalGenerees={totalGenerees}
+              totalRelances={totalRelances}
+              totalErreurs={totalErreurs}
+              filteredByAgenceRows={filteredByAgenceRows}
+              forecastRows={forecastRows}
+              topRows={topRows}
+              bottomRows={bottomRows}
+              apiBase={API_BASE}
+            />
+          </Suspense>
+
           {isAdminPortal && Array.isArray(adminOverview.byAgence) && adminOverview.byAgence.length > 0 && (
             <div className="rounded-xl border border-night-600 bg-night-800/30 p-5">
               <h3 className="font-semibold text-white mb-4">Performance par agence ({filteredByAgenceRows.length})</h3>

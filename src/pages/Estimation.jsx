@@ -1,19 +1,27 @@
 import { motion } from 'framer-motion'
 import Seo from '../components/Seo'
+import HeroCoverImage from '../components/HeroCoverImage'
+import { HERO_UNSPLASH_BUILDING, ogImageFromUnsplashBase } from '../lib/shareImages'
 import EstimationForm from '../components/EstimationForm'
 import { Shield } from 'lucide-react'
 
 export default function Estimation() {
   return (
     <div>
-      <Seo title="Estimation gratuite" description="Demandez une estimation gratuite et confidentielle de votre bien. Sans engagement. Réponse sous 48h." />
+      <Seo
+        title="Estimation gratuite"
+        description="Demandez une estimation gratuite et confidentielle de votre bien. Sans engagement. Réponse sous 48h."
+        ogImage={ogImageFromUnsplashBase(HERO_UNSPLASH_BUILDING)}
+        imageAlt="Clés et estimation de bien immobilier — ImmoConnect_GN"
+      />
       <section className="relative py-20 md:py-28 overflow-hidden">
-        <div
-          className="absolute inset-0 parallax-bg bg-night-800"
-          style={{
-            backgroundImage: `url(https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1920)`,
-          }}
-        />
+        <div className="absolute inset-0 overflow-hidden bg-night-800">
+          <HeroCoverImage
+            baseUrl={HERO_UNSPLASH_BUILDING}
+            alt="Clés sur plan — demande d'estimation ImmoConnect_GN"
+            priority
+          />
+        </div>
         <div className="absolute inset-0 bg-night-900/85" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <motion.h1

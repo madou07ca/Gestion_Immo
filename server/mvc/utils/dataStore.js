@@ -20,6 +20,13 @@ const files = {
   emailLogs: path.join(dataDir, 'email-logs.json'),
   tickets: path.join(dataDir, 'tickets.json'),
   appSettings: path.join(dataDir, 'app-settings.json'),
+  auditEvents: path.join(dataDir, 'audit-events.json'),
+  reversements: path.join(dataDir, 'reversements.json'),
+  etatsLieux: path.join(dataDir, 'etats-lieux.json'),
+  cautions: path.join(dataDir, 'cautions.json'),
+  notificationQueue: path.join(dataDir, 'notification-queue.json'),
+  signatureRequests: path.join(dataDir, 'signature-requests.json'),
+  relances: path.join(dataDir, 'relances.json'),
 }
 
 function ensureFile(filePath) {

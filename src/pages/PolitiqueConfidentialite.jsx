@@ -1,8 +1,16 @@
 import { motion } from 'framer-motion'
+import Seo from '../components/Seo'
+import { DEFAULT_OG_IMAGE_URL } from '../lib/shareImages'
 
 export default function PolitiqueConfidentialite() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      <Seo
+        title="Politique de confidentialité"
+        description="Politique de confidentialité ImmoConnect_GN : données collectées, finalités, droits RGPD et cookies."
+        ogImage={DEFAULT_OG_IMAGE_URL}
+        imageAlt="ImmoConnect_GN — politique de confidentialité"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -10,7 +18,7 @@ export default function PolitiqueConfidentialite() {
         <h1 className="font-display text-3xl font-bold text-white mb-8">Politique de confidentialité</h1>
         <div className="prose prose-invert max-w-none space-y-6 text-gray-300">
           <p>
-            Immo-Connect_GN s'engage à protéger la vie privée des utilisateurs de son site. 
+            ImmoConnect_GN s'engage à protéger la vie privée des utilisateurs de son site. 
             Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles.
           </p>
           <section>

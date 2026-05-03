@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit'
 import { findContratById } from '../repositories/contratRepository.js'
-import { findBienById } from '../repositories/bienRepository.js'
+import { findBienById, listBiens } from '../repositories/bienRepository.js'
 import { findLocataireById } from '../repositories/locataireRepository.js'
 import { findProprietaireById } from '../repositories/proprietaireRepository.js'
 import {
@@ -9,14 +9,33 @@ import {
   updateContratStatus,
   deleteContratService,
 } from '../services/operationsService.js'
+import { assertSameAgence } from '../utils/backofficeScope.js'
 
-export function listContratsController(_req, res) {
-  res.json(getContrats())
+function assertContratScope(req, contrat) {
+  if (!contrat) return { status: 404, message: 'Contrat introuvable.' }
+  const bien = findBienById(contrat.bienId)
+  const denied = assertSameAgence(req.scopeAgenceId, bien?.agenceId, 'Contrat')
+  if (denied) return { status: denied.status, message: denied.message }
+  return null
+}
+
+export function listContratsController(req, res) {
+  let rows = getContrats()
+  if (req.scopeAgenceId) {
+    const biens = listBiens()
+    const bienById = Object.fromEntries(biens.map((b) => [b.id, b]))
+    const aid = req.scopeAgenceId
+    rows = rows.filter((c) => String(bienById[c.bienId]?.agenceId || '') === aid)
+  }
+  res.json(rows)
 }
 
 export function downloadContratController(req, res) {
   const contrat = findContratById(req.params.id)
   if (!contrat) return res.status(404).json({ ok: false, error: 'Contrat introuvable.' })
+
+  const blocked = assertContratScope({ scopeAgenceId: req.scopeAgenceId }, contrat)
+  if (blocked) return res.status(blocked.status).json({ ok: false, error: blocked.message })
 
   const bien = findBienById(contrat.bienId)
   const locataire = findLocataireById(contrat.locataireId)
@@ -78,18 +97,30 @@ export function downloadContratController(req, res) {
 }
 
 export function signContratController(req, res) {
-  const result = signContrat(req.body || {})
+  const body = req.body || {}
+  if (req.scopeAgenceId) {
+    const bien = findBienById(body.bienId)
+    const denied = assertSameAgence(req.scopeAgenceId, bien?.agenceId, 'Bien')
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.message })
+  }
+  const result = signContrat(body)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   res.status(201).json({ ok: true, data: result.data.contrat, bien: result.data.bien })
 }
 
 export function updateContratStatusController(req, res) {
+  const contrat = findContratById(req.params.id)
+  const blocked = assertContratScope(req, contrat)
+  if (blocked) return res.status(blocked.status).json({ ok: false, error: blocked.message })
   const result = updateContratStatus(req.params.id, req.body?.statut)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   res.json({ ok: true, data: result.data })
 }
 
 export function deleteContratController(req, res) {
+  const contrat = findContratById(req.params.id)
+  const blocked = assertContratScope(req, contrat)
+  if (blocked) return res.status(blocked.status).json({ ok: false, error: blocked.message })
   const result = deleteContratService(req.params.id)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   res.json({ ok: true, data: result.data })

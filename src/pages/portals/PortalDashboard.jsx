@@ -10,14 +10,16 @@ import InlineFeedback from '../../components/InlineFeedback'
 
 export default function PortalDashboard() {
   const { slug } = useParams()
+  const isAgencyPortal = slug === 'agence'
+  const isAdminDashboard = slug === 'admin' || isAgencyPortal
   const dashboardSlug = slug === 'admin' ? 'gestionnaire' : slug
   const portal = espacePortals[slug]
   const menu = portalAppMenus[slug]
   const [kpis, setKpis] = useState(
-    slug === 'admin' ? kpiBySlug.admin || [] : kpiBySlug[dashboardSlug] || [],
+    isAdminDashboard ? kpiBySlug.admin || [] : kpiBySlug[dashboardSlug] || [],
   )
   const [feed, setFeed] = useState(
-    slug === 'admin' ? activityFeed.admin || [] : activityFeed[dashboardSlug] || [],
+    isAdminDashboard ? activityFeed.admin || [] : activityFeed[dashboardSlug] || [],
   )
   const [adminOverviewNotice, setAdminOverviewNotice] = useState('')
   const [adminSignals, setAdminSignals] = useState([])
@@ -48,7 +50,11 @@ export default function PortalDashboard() {
   })
   const quick = menu?.filter((m) => m.path) || []
 
-  if (!portal) return null
+  const scopedAgenceId = useMemo(() => {
+    if (!isAgencyPortal) return null
+    const session = getAuthSession()
+    return session?.agenceId ? String(session.agenceId) : null
+  }, [isAgencyPortal, slug])
 
   useEffect(() => {
     if (slug !== 'locataire') return
@@ -102,10 +108,15 @@ export default function PortalDashboard() {
   }, [slug])
 
   useEffect(() => {
-    if (slug !== 'admin') return
+    if (!isAdminDashboard) return
     const loadAdminOverview = async () => {
+      const aid = isAgencyPortal && scopedAgenceId ? scopedAgenceId : null
+      const matchesAgence = (row) =>
+        !aid || !row || row.agenceId === undefined || row.agenceId === null || String(row.agenceId) === aid
       try {
-        const res = await fetch('/api/admin/overview')
+        const session = getAuthSession()
+        const headers = session?.token ? { Authorization: `Bearer ${session.token}` } : {}
+        const res = await fetch('/api/admin/overview', { headers })
         const payload = await res.json().catch(() => ({}))
         if (!res.ok || !payload?.ok) {
           setAdminOverviewNotice(
@@ -121,13 +132,27 @@ export default function PortalDashboard() {
           return
         }
         setAdminOverviewNotice('')
-        if (Array.isArray(payload.data.kpis)) setKpis(payload.data.kpis)
-        if (Array.isArray(payload.data.feed)) setFeed(payload.data.feed)
-        setAdminSignals(Array.isArray(payload.data.signals) ? payload.data.signals : [])
-        setAdminExpiring(Array.isArray(payload.data.expiringLeases) ? payload.data.expiringLeases : [])
-        setAdminByAgence(Array.isArray(payload.data.byAgence) ? payload.data.byAgence : [])
-        setAdminAlerts(Array.isArray(payload.data.alerts) ? payload.data.alerts : [])
-        setAdminActionsToday(Array.isArray(payload.data.actionsToday) ? payload.data.actionsToday : [])
+        let nextKpis = Array.isArray(payload.data.kpis) ? payload.data.kpis : []
+        let nextFeed = Array.isArray(payload.data.feed) ? payload.data.feed : []
+        let nextSignals = Array.isArray(payload.data.signals) ? payload.data.signals : []
+        let nextExpiring = Array.isArray(payload.data.expiringLeases) ? payload.data.expiringLeases : []
+        let nextByAgence = Array.isArray(payload.data.byAgence) ? payload.data.byAgence : []
+        let nextAlerts = Array.isArray(payload.data.alerts) ? payload.data.alerts : []
+        let nextActions = Array.isArray(payload.data.actionsToday) ? payload.data.actionsToday : []
+        if (aid) {
+          nextByAgence = nextByAgence.filter((r) => String(r.agenceId) === aid)
+          nextSignals = nextSignals.filter(matchesAgence)
+          nextExpiring = nextExpiring.filter(matchesAgence)
+          nextAlerts = nextAlerts.filter(matchesAgence)
+          nextActions = nextActions.filter(matchesAgence)
+        }
+        setKpis(nextKpis)
+        setFeed(nextFeed)
+        setAdminSignals(nextSignals)
+        setAdminExpiring(nextExpiring)
+        setAdminByAgence(nextByAgence)
+        setAdminAlerts(nextAlerts)
+        setAdminActionsToday(nextActions)
       } catch {
         setAdminOverviewNotice('Connexion impossible au serveur API: affichage des KPI en demonstration.')
         setAdminSignals([])
@@ -138,26 +163,53 @@ export default function PortalDashboard() {
       }
     }
     loadAdminOverview()
-  }, [slug])
+  }, [isAdminDashboard, isAgencyPortal, scopedAgenceId, slug])
+
+  useEffect(() => {
+    if (!isAgencyPortal || !scopedAgenceId) return
+    setAdminDashboardFilters((prev) => ({ ...prev, agenceId: scopedAgenceId }))
+  }, [isAgencyPortal, scopedAgenceId])
 
   const filteredSignals = useMemo(() => {
-    if (slug !== 'admin') return adminSignals
+    if (!isAdminDashboard) return adminSignals
     if (adminDashboardFilters.severity === 'all') return adminSignals
     return adminSignals.filter((signal) => signal.severity === adminDashboardFilters.severity)
-  }, [slug, adminSignals, adminDashboardFilters.severity])
+  }, [isAdminDashboard, adminSignals, adminDashboardFilters.severity])
 
   const filteredExpiring = useMemo(() => {
-    if (slug !== 'admin') return adminExpiring
+    if (!isAdminDashboard) return adminExpiring
     const horizonDays = Number(adminDashboardFilters.horizon || 90)
     return adminExpiring.filter((row) => {
-      const matchesAgency = adminDashboardFilters.agenceId === 'all' || row.agenceId === adminDashboardFilters.agenceId
+      const matchesAgency =
+        isAgencyPortal
+          ? scopedAgenceId && String(row.agenceId) === scopedAgenceId
+          : adminDashboardFilters.agenceId === 'all' || row.agenceId === adminDashboardFilters.agenceId
       const matchesHorizon = Number(row.joursRestants || 9999) <= horizonDays
       return matchesAgency && matchesHorizon
     })
-  }, [slug, adminExpiring, adminDashboardFilters.agenceId, adminDashboardFilters.horizon])
+  }, [
+    isAdminDashboard,
+    isAgencyPortal,
+    scopedAgenceId,
+    adminExpiring,
+    adminDashboardFilters.agenceId,
+    adminDashboardFilters.horizon,
+  ])
 
   const displayedKpis = useMemo(() => {
-    if (slug !== 'admin') return kpis
+    if (!isAdminDashboard) return kpis
+    if (isAgencyPortal && scopedAgenceId) {
+      const agenceRow = adminByAgence.find((row) => String(row.agenceId) === scopedAgenceId)
+      if (!agenceRow) return kpis
+      return [
+        { label: 'Votre agence', value: agenceRow.agence, sub: 'Vue restreinte au portefeuille rattache' },
+        { label: 'Biens agence', value: String(agenceRow.biens), sub: `${agenceRow.loues} loues` },
+        { label: 'Occupation agence', value: agenceRow.tauxOccupation, sub: 'Taux local' },
+        { label: 'Retards agence', value: String(agenceRow.paiementsRetard), sub: 'Paiements en retard' },
+        { label: 'Locataires agence', value: String(agenceRow.locataires), sub: 'Portefeuille locatif' },
+        { label: 'Gestionnaires agence', value: String(agenceRow.gestionnaires), sub: 'Capacite operationnelle' },
+      ]
+    }
     if (adminDashboardFilters.agenceId === 'all') return kpis
     const agenceRow = adminByAgence.find((row) => row.agenceId === adminDashboardFilters.agenceId)
     if (!agenceRow) return kpis
@@ -169,7 +221,9 @@ export default function PortalDashboard() {
       { label: 'Locataires agence', value: String(agenceRow.locataires), sub: 'Portefeuille locatif' },
       { label: 'Gestionnaires agence', value: String(agenceRow.gestionnaires), sub: 'Capacite operationnelle' },
     ]
-  }, [slug, kpis, adminDashboardFilters.agenceId, adminByAgence])
+  }, [isAdminDashboard, isAgencyPortal, scopedAgenceId, kpis, adminDashboardFilters.agenceId, adminByAgence])
+
+  if (!portal) return null
 
   return (
     <div>
@@ -179,7 +233,7 @@ export default function PortalDashboard() {
           <p className="text-gray-500 text-sm mt-1">
             Bienvenue sur votre espace {portal.title.replace('Espace ', '').toLowerCase()}.
           </p>
-          {slug === 'admin' && adminOverviewNotice ? (
+          {isAdminDashboard && adminOverviewNotice ? (
             <InlineFeedback message={adminOverviewNotice} className="mt-3" />
           ) : null}
         </div>
@@ -243,6 +297,54 @@ export default function PortalDashboard() {
           </div>
         </div>
       )}
+      {isAgencyPortal && (
+        <div className="mb-6 rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 md:grid-cols-2">
+          <p className="md:col-span-2 text-sm text-gray-500">
+            Pilotage limite a votre agence (memes indicateurs que la vue plateforme, sans acces aux autres agences).
+          </p>
+          <label className="text-sm">
+            <span className="text-gray-400">Severite signaux</span>
+            <select
+              value={adminDashboardFilters.severity}
+              onChange={(e) => setAdminDashboardFilters((prev) => ({ ...prev, severity: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+            >
+              <option value="all">Toutes</option>
+              <option value="high">Critique</option>
+              <option value="medium">Moyenne</option>
+              <option value="low">Basse</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="text-gray-400">Horizon baux</span>
+            <select
+              value={adminDashboardFilters.horizon}
+              onChange={(e) => setAdminDashboardFilters((prev) => ({ ...prev, horizon: e.target.value }))}
+              className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+            >
+              <option value="30">30 jours</option>
+              <option value="90">90 jours</option>
+              <option value="365">12 mois</option>
+            </select>
+          </label>
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setAdminDashboardFilters((prev) => ({
+                  ...prev,
+                  severity: 'all',
+                  horizon: '90',
+                  agenceId: scopedAgenceId || prev.agenceId,
+                }))
+              }
+              className="rounded-lg border border-night-500 px-3 py-2 text-xs text-gray-300 hover:border-gold-500/40 hover:text-gold-300 transition-colors"
+            >
+              Reinitialiser les filtres
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-3 gap-4 mb-10">
         {displayedKpis.map((k, i) => (
@@ -260,7 +362,7 @@ export default function PortalDashboard() {
         ))}
       </div>
 
-      {slug === 'admin' ? (
+      {isAdminDashboard ? (
         <div className="mb-10 rounded-xl border border-night-600 bg-night-800/25 p-5">
           <h2 className="font-semibold text-white mb-3">Centre d alertes actionnables</h2>
           {adminAlerts.length === 0 ? (
@@ -284,7 +386,7 @@ export default function PortalDashboard() {
         </div>
       ) : null}
 
-      {slug === 'admin' ? (
+      {isAdminDashboard ? (
         <div className="mb-10 rounded-xl border border-night-600 bg-night-800/25 p-5">
           <h2 className="font-semibold text-white mb-3">Actions du jour</h2>
           {adminActionsToday.length === 0 ? (
@@ -304,7 +406,7 @@ export default function PortalDashboard() {
         </div>
       ) : null}
 
-      {slug === 'admin' ? (
+      {isAdminDashboard ? (
         <div className="mb-10 rounded-xl border border-night-600 bg-night-800/25 p-5">
           <h2 className="font-semibold text-white mb-3">Backlog SLA tickets</h2>
           <Link to={`/espace/${slug}/app/tickets`} className="text-xs text-sky-300 hover:text-sky-200">
@@ -313,9 +415,11 @@ export default function PortalDashboard() {
         </div>
       ) : null}
 
-      {slug === 'admin' ? (
+      {isAdminDashboard ? (
         <div className="mb-10">
-          <h2 className="font-semibold text-white mb-3">Signaux plateforme ({filteredSignals.length})</h2>
+          <h2 className="font-semibold text-white mb-3">
+            {isAgencyPortal ? 'Signaux agence' : 'Signaux plateforme'} ({filteredSignals.length})
+          </h2>
           {filteredSignals.length === 0 ? (
             <p className="text-sm text-gray-500 rounded-xl border border-dashed border-night-600 px-4 py-6">
               Aucun signal pour les filtres selectionnes.
@@ -347,7 +451,7 @@ export default function PortalDashboard() {
         </div>
       ) : null}
 
-      {slug === 'admin' ? (
+      {isAdminDashboard ? (
         <div className="mb-10 rounded-xl border border-night-600 bg-night-800/25 overflow-hidden">
           <div className="px-5 py-3 border-b border-night-600 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-white text-sm">Prochaines echeances de baux ({filteredExpiring.length})</h2>

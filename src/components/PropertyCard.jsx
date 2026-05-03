@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
+import { propertyCardImageAttrs } from '../lib/responsiveImages'
 import { motion } from 'framer-motion'
 import { MapPin, Maximize2, BedDouble } from 'lucide-react'
 
 export default function PropertyCard({ property, listView }) {
   const image = property.images?.[0] || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800'
+  const imgAttrs = propertyCardImageAttrs(image)
   const url = `/nos-biens/${property.slug}`
 
   if (listView) {
@@ -15,10 +17,9 @@ export default function PropertyCard({ property, listView }) {
         <Link to={url} className="flex flex-col sm:flex-row w-full">
           <div className="relative w-full sm:w-64 h-48 sm:h-auto sm:min-h-[180px] shrink-0 overflow-hidden">
             <img
-              src={image}
+              {...imgAttrs}
               alt={property.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
             />
           </div>
           <div className="p-4 flex-1 min-w-0">
@@ -41,10 +42,9 @@ export default function PropertyCard({ property, listView }) {
       <Link to={url} className="block">
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
-            src={image}
+            {...imgAttrs}
             alt={property.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
           />
           <div className="absolute top-3 left-3 px-2 py-1 rounded bg-night-900/80 text-gold-400 text-xs font-medium capitalize">
             {property.type}

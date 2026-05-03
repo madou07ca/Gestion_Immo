@@ -487,6 +487,20 @@ const contrats = [
 
 const accessUsers = [
   {
+    id: 'access-agency-centre-contact',
+    role: 'agence',
+    agenceId: 'agency-conakry-centre',
+    internalRole: 'directeur_agence',
+    nom: 'Agence Conakry Centre',
+    email: 'centre@immo-connect.gn',
+    telephone: '+224611000001',
+    poste: 'Contact agence',
+    code: '1234',
+    linkedId: 'agency-conakry-centre',
+    statut: 'Actif',
+    createdAt: iso,
+  },
+  {
     id: 'access-agency-centre',
     role: 'agence',
     agenceId: 'agency-conakry-centre',

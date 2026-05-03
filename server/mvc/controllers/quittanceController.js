@@ -3,12 +3,16 @@ import { findQuittanceById } from '../repositories/quittanceRepository.js'
 import { listLocataires } from '../repositories/locataireRepository.js'
 import { listBiens } from '../repositories/bienRepository.js'
 import { sendQuittanceByEmail } from '../services/operationsService.js'
+import { assertSameAgence } from '../utils/backofficeScope.js'
 
 export function downloadQuittanceController(req, res) {
   const quittance = findQuittanceById(req.params.id)
   if (!quittance) return res.status(404).json({ ok: false, error: 'Quittance introuvable.' })
   const tenant = listLocataires().find((item) => item.id === quittance.locataireId)
   const bien = listBiens().find((item) => item.id === quittance.bienId)
+  if (!bien) return res.status(404).json({ ok: false, error: 'Bien lie introuvable.' })
+  const denied = assertSameAgence(req.scopeAgenceId, bien.agenceId, 'Quittance')
+  if (denied) return res.status(denied.status).json({ ok: false, error: denied.message })
 
   const fileName = `quittance-${quittance.id}.pdf`
   res.setHeader('Content-Disposition', `attachment; filename=${fileName}`)
@@ -81,6 +85,12 @@ export function downloadQuittanceController(req, res) {
 }
 
 export function sendQuittanceEmailController(req, res) {
+  const quittance = findQuittanceById(req.params.id)
+  if (!quittance) return res.status(404).json({ ok: false, error: 'Quittance introuvable.' })
+  const bien = listBiens().find((item) => item.id === quittance.bienId)
+  if (!bien) return res.status(404).json({ ok: false, error: 'Bien lie introuvable.' })
+  const denied = assertSameAgence(req.scopeAgenceId, bien.agenceId, 'Quittance')
+  if (denied) return res.status(denied.status).json({ ok: false, error: denied.message })
   const result = sendQuittanceByEmail(req.params.id, req.body?.email)
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   res.json({ ok: true, data: result.data })

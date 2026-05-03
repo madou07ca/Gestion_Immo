@@ -1,8 +1,9 @@
 import { Link, useParams, Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Lock, Sparkles, AlertCircle, Info } from 'lucide-react'
+import { ArrowLeft, Lock, Sparkles, AlertCircle, Info, Eye, EyeOff } from 'lucide-react'
 import Seo from '../components/Seo'
+import { DEFAULT_OG_IMAGE_URL } from '../lib/shareImages'
 import { espacePortals } from '../data/espacePortals'
 import { isRoleAuthorized, setAuthSession } from '../lib/authSession'
 
@@ -25,6 +26,7 @@ export default function EspacePortal() {
   const { slug } = useParams()
   const portal = espacePortals[slug]
   const [authForm, setAuthForm] = useState({ email: '', code: '' })
+  const [showAccessCode, setShowAccessCode] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState(() => consumeSessionExpiredFlash(slug))
   const isSessionExpiredMessage = authError.toLowerCase().includes('session expiree')
@@ -65,6 +67,8 @@ export default function EspacePortal() {
       <Seo
         title={portal.title}
         description={portal.description}
+        ogImage={DEFAULT_OG_IMAGE_URL}
+        imageAlt={`${portal.title} — ImmoConnect_GN`}
       />
 
       <section className={`relative overflow-hidden border-b border-night-600 bg-gradient-to-br ${portal.accent}`}>
@@ -87,7 +91,7 @@ export default function EspacePortal() {
             </motion.div>
             <div className="flex-1">
               <p className="text-gold-400/90 text-sm font-semibold tracking-wide uppercase mb-2">
-                Plateforme Immo-Connect_GN
+                Plateforme ImmoConnect_GN
               </p>
               <h1 className="font-display text-3xl md:text-5xl font-bold text-white mb-3">
                 {portal.title}
@@ -121,14 +125,25 @@ export default function EspacePortal() {
                   className="rounded-lg bg-night-800 border border-night-600 px-3 py-2 text-sm text-gray-200"
                   required
                 />
-                <input
-                  type="password"
-                  placeholder="Code (demo: 1234)"
-                  value={authForm.code}
-                  onChange={(e) => setAuthForm((prev) => ({ ...prev, code: e.target.value }))}
-                  className="rounded-lg bg-night-800 border border-night-600 px-3 py-2 text-sm text-gray-200"
-                  required
-                />
+                <div className="relative min-w-0">
+                  <input
+                    type={showAccessCode ? 'text' : 'password'}
+                    placeholder="Code (demo: 1234)"
+                    value={authForm.code}
+                    onChange={(e) => setAuthForm((prev) => ({ ...prev, code: e.target.value }))}
+                    autoComplete="current-password"
+                    className="w-full rounded-lg bg-night-800 border border-night-600 py-2 pl-3 pr-10 text-sm text-gray-200"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAccessCode((v) => !v)}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:text-gold-400 focus-visible:outline focus-visible:ring-2 focus-visible:ring-gold-500/60"
+                    aria-label={showAccessCode ? 'Masquer le code' : 'Afficher le code'}
+                  >
+                    {showAccessCode ? <EyeOff size={18} strokeWidth={1.75} aria-hidden /> : <Eye size={18} strokeWidth={1.75} aria-hidden />}
+                  </button>
+                </div>
                 <button
                   type="submit"
                   disabled={authLoading}

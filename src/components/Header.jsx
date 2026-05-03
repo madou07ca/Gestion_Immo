@@ -8,7 +8,7 @@ import PlatformMenu from './PlatformMenu'
 const navItems = [
   { to: '/', label: 'Accueil' },
   { to: '/nos-biens', label: 'Nos Biens' },
-  { to: '/gestion-locative', label: 'Gestion locative' },
+  { to: '/gestion-locative', label: 'Pour les agences' },
   { to: '/estimation', label: 'Estimation' },
   { to: '/a-propos', label: 'À propos' },
 ]

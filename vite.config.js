@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Immo-Connect_GN Conakry',
-        short_name: 'Immo-Connect_GN',
+        name: 'ImmoConnect_GN Conakry',
+        short_name: 'ImmoConnect_GN',
         description: 'Location et gestion locative haut de gamme à Conakry',
         theme_color: '#0a0e1a',
         background_color: '#0a0e1a',
@@ -46,7 +46,8 @@ export default defineConfig({
           },
         ],
       },
-      devOptions: { enabled: true },
+      // Evite les effets de cache/service worker en developpement (chunks obsoletes).
+      devOptions: { enabled: false },
     }),
   ],
   server: {

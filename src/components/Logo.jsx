@@ -63,7 +63,7 @@ export default function Logo({ compact = false }) {
       className={`group flex items-center outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-night-900 rounded-lg ${
         compact ? 'gap-2' : 'gap-2.5 md:gap-3'
       }`}
-      aria-label="Immo-Connect_GN - Accueil"
+      aria-label="ImmoConnect_GN - Accueil"
     >
       <motion.div
         whileHover={{ scale: compact ? 1.04 : 1.05 }}
@@ -80,7 +80,7 @@ export default function Logo({ compact = false }) {
             compact ? 'text-base' : 'text-lg md:text-xl'
           }`}
         >
-          Immo-Connect
+          ImmoConnect
         </span>
         <span className={`flex items-center gap-1.5 ${compact ? 'mt-0' : 'mt-0.5'}`}>
           <span className="inline-flex items-center rounded-md bg-gradient-to-r from-gold-500/20 to-gold-600/10 border border-gold-400/35 px-1.5 py-0.5 text-[10px] md:text-[11px] font-semibold text-gold-200 tabular-nums">

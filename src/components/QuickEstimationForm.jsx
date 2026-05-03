@@ -48,7 +48,7 @@ export default function QuickEstimationForm() {
         className="rounded-xl bg-night-700 border border-gold-500/30 p-8 text-center"
       >
         <p className="text-gold-400 font-semibold text-lg">Demande envoyée avec succès.</p>
-        <p className="text-gray-400 mt-2">Nous vous recontacterons sous 24h pour votre estimation confidentielle.</p>
+        <p className="text-gray-200 mt-2">Nous vous recontacterons sous 24h pour votre estimation confidentielle.</p>
       </motion.div>
     )
   }
@@ -62,7 +62,7 @@ export default function QuickEstimationForm() {
     >
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Nom *</label>
+          <label className="block text-sm font-medium text-gray-200 mb-1">Nom *</label>
           <input
             {...register('name', { required: 'Champ requis' })}
             className="w-full px-4 py-2.5 rounded-lg bg-night-800 border border-night-500 text-white placeholder-gray-500 focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
@@ -71,7 +71,7 @@ export default function QuickEstimationForm() {
           {errors.name && <p className="mt-1 text-sm text-red-400">{errors.name.message}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Téléphone *</label>
+          <label className="block text-sm font-medium text-gray-200 mb-1">Téléphone *</label>
           <input
             {...register('phone', { required: 'Champ requis' })}
             type="tel"
@@ -82,7 +82,7 @@ export default function QuickEstimationForm() {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Email *</label>
+        <label className="block text-sm font-medium text-gray-200 mb-1">Email *</label>
         <input
           {...register('email', { required: 'Champ requis', pattern: { value: /^\S+@\S+$/i, message: 'Email invalide' } })}
           type="email"
@@ -93,7 +93,7 @@ export default function QuickEstimationForm() {
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Type de bien *</label>
+          <label className="block text-sm font-medium text-gray-200 mb-1">Type de bien *</label>
           <select
             {...register('propertyType', { required: 'Champ requis' })}
             className="w-full px-4 py-2.5 rounded-lg bg-night-800 border border-night-500 text-white focus:border-gold-500 focus:ring-1 focus:ring-gold-500"
@@ -106,7 +106,7 @@ export default function QuickEstimationForm() {
           {errors.propertyType && <p className="mt-1 text-sm text-red-400">{errors.propertyType.message}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Surface (m²)</label>
+          <label className="block text-sm font-medium text-gray-200 mb-1">Surface (m²)</label>
           <input
             {...register('surface', { min: 0 })}
             type="number"

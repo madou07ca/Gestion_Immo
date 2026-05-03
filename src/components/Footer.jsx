@@ -12,7 +12,7 @@ export default function Footer() {
               <Logo compact />
             </div>
             <p className="text-gray-400 text-sm">
-              Location et gestion locative haut de gamme à Conakry. Votre partenaire de confiance.
+              Plateforme de gestion immobilière pour agences : publiez, pilotez votre parc et servez vos clients depuis un seul outil.
             </p>
           </div>
           <div>
@@ -43,7 +43,7 @@ export default function Footer() {
                 { path: '/', label: 'Accueil' },
                 { path: '/nos-biens', label: 'Nos Biens' },
                 { path: '/espace', label: 'Plateforme (espaces)' },
-                { path: '/gestion-locative', label: 'Gestion locative' },
+                { path: '/gestion-locative', label: 'Pour les agences' },
                 { path: '/estimation', label: 'Estimation' },
                 { path: '/a-propos', label: 'À propos' },
               ].map(({ path, label }) => (
@@ -68,7 +68,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-night-600 text-center text-sm text-gray-500">
-          © {new Date().getFullYear()} Immo-Connect_GN. Tous droits réservés.
+          © {new Date().getFullYear()} ImmoConnect_GN. Tous droits réservés.
         </div>
       </div>
     </footer>

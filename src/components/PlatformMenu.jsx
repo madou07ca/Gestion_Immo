@@ -83,7 +83,7 @@ export default function PlatformMenu({ mobile = false, onNavigate }) {
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.15 }}
             onMouseLeave={() => setOpen(false)}
-            className="absolute left-1/2 -translate-x-1/2 top-full pt-2 z-[60] min-w-[280px]"
+            className="absolute right-0 lg:right-auto lg:left-1/2 lg:-translate-x-1/2 top-full pt-2 z-[60] min-w-[280px] max-w-[calc(100vw-1rem)]"
           >
             <div className="rounded-xl border border-night-500 bg-night-800/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
               <Link
