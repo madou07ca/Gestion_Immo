@@ -46,22 +46,33 @@ export function login({ role, email, code }) {
         data,
       }
     }
-    const person = safeRole === 'proprietaire'
-      ? findProprietaireByEmail(safeEmail)
-      : findLocataireByEmail(safeEmail)
-    if (!person) {
-      return { error: { status: 404, message: 'Utilisateur introuvable pour ce role.' } }
+    // Demo rapide proprietaire/locataire uniquement (pas agence/gestionnaire : ils passent par access-users).
+    if (safeRole === 'proprietaire' || safeRole === 'locataire') {
+      const person = safeRole === 'proprietaire'
+        ? findProprietaireByEmail(safeEmail)
+        : findLocataireByEmail(safeEmail)
+      if (!person) {
+        return {
+          error: {
+            status: 404,
+            message:
+              safeRole === 'locataire'
+                ? 'Cet email ne correspond a aucun locataire dans les donnees de demonstration (code 1234). Exemple valide: mariama.bah@example.gn — pour un compte agence, utilisez /espace/agence avec centre@immo-connect.gn.'
+                : 'Cet email ne correspond a aucun proprietaire dans les donnees de demonstration (code 1234). Exemple valide: fatou.barry@example.gn — pour un compte agence, utilisez /espace/agence.',
+          },
+        }
+      }
+      const token = createId('session')
+      const data = {
+        role: safeRole,
+        userId: person.id,
+        name: person.nom,
+        email: person.email,
+        token,
+      }
+      upsertSession({ ...data, createdAt: new Date().toISOString() })
+      return { data }
     }
-    const token = createId('session')
-    const data = {
-      role: safeRole,
-      userId: person.id,
-      name: person.nom,
-      email: person.email,
-      token,
-    }
-    upsertSession({ ...data, createdAt: new Date().toISOString() })
-    return { data }
   }
 
   const accessUser = findAccessUserByRoleEmail(safeRole, safeEmail)

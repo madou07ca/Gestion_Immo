@@ -1,18 +1,16 @@
+const fullOps = {
+  workspace: ['read'],
+  proprietaires: ['create', 'update', 'delete'],
+  locataires: ['create', 'update', 'delete'],
+  gestionnaires: ['create', 'update', 'delete'],
+  biens: ['create', 'update', 'delete'],
+}
+
 const permissionMatrix = {
-  directeur_agence: {
-    workspace: ['read'],
-    proprietaires: ['create', 'update', 'delete'],
-    locataires: ['create', 'update', 'delete'],
-    gestionnaires: ['create', 'update', 'delete'],
-    biens: ['create', 'update', 'delete'],
-  },
-  gestionnaire_agence: {
-    workspace: ['read'],
-    proprietaires: ['create', 'update'],
-    locataires: ['create', 'update'],
-    gestionnaires: ['create', 'update'],
-    biens: ['create', 'update'],
-  },
+  directeur_agence: fullOps,
+  gestionnaire_agence: fullOps,
+  gestionnaire_support: fullOps,
+  gestionnaire_finance: fullOps,
   lecture_seule: {
     workspace: ['read'],
     proprietaires: [],

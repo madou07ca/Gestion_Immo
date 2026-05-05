@@ -5,6 +5,7 @@ import {
   listContratsController,
   downloadContratController,
   signContratController,
+  updateContratFieldsController,
   updateContratStatusController,
   deleteContratController,
 } from '../controllers/contratController.js'
@@ -18,6 +19,7 @@ router.use(attachScopeAgenceId)
 router.get('/', listContratsController)
 router.get('/:id/download', downloadContratController)
 router.post('/signature', signContratController)
+router.put('/:id', updateContratFieldsController)
 router.patch('/:id/status', updateContratStatusController)
 router.delete('/:id', deleteContratController)
 

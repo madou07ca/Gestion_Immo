@@ -363,6 +363,7 @@ export function updateAgenceGestionnaireService(agenceIdInput, id, input) {
       email: nextEmail || item.email,
       statut: input.statut !== undefined ? ensureString(input.statut) || item.statut : item.statut,
       code: input.code !== undefined ? ensureString(input.code) || item.code : item.code,
+      internalRole: input.internalRole !== undefined ? ensureString(input.internalRole) || item.internalRole : item.internalRole,
       updatedAt: new Date().toISOString(),
     })),
   }

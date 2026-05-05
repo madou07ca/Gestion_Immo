@@ -683,6 +683,49 @@ export function updateContratStatus(id, statut) {
   return { data: updated }
 }
 
+/** Mise a jour des champs bail (hors changement de bien/locataire par cette voie). */
+export function updateContratFieldsService(id, input) {
+  const current = findContratById(id)
+  if (!current) return { error: { status: 404, message: 'Contrat introuvable.' } }
+  const body = input || {}
+  const d0 = body.dateDebut !== undefined ? ensureString(body.dateDebut) : current.dateDebut
+  const d1 = body.dateFin !== undefined ? ensureString(body.dateFin) : current.dateFin
+  const t0 = new Date(d0).getTime()
+  const t1 = new Date(d1).getTime()
+  if (Number.isFinite(t0) && Number.isFinite(t1) && t1 < t0) {
+    return { error: { status: 400, message: 'dateFin doit etre posterieure ou egale a dateDebut.' } }
+  }
+  const updated = updateContrat(id, (row) => ({
+    ...row,
+    dateDebut: body.dateDebut !== undefined ? ensureString(body.dateDebut) : row.dateDebut,
+    dateFin: body.dateFin !== undefined ? ensureString(body.dateFin) : row.dateFin,
+    dateSignature: body.dateSignature !== undefined ? ensureString(body.dateSignature) : row.dateSignature,
+    dureeMois: body.dureeMois !== undefined
+      ? (isPositiveNumber(body.dureeMois) ? Number(body.dureeMois) : row.dureeMois)
+      : row.dureeMois,
+    loyerMensuel: body.loyerMensuel !== undefined ? Number(body.loyerMensuel) : row.loyerMensuel,
+    chargesMensuelles: body.chargesMensuelles !== undefined ? Number(body.chargesMensuelles) : row.chargesMensuelles,
+    depotGarantie: body.depotGarantie !== undefined ? Number(body.depotGarantie) : row.depotGarantie,
+    modalitePaiement: body.modalitePaiement !== undefined ? ensureString(body.modalitePaiement) : row.modalitePaiement,
+    jourEcheance: body.jourEcheance !== undefined ? Number(body.jourEcheance) : row.jourEcheance,
+    penaliteRetard: body.penaliteRetard !== undefined ? ensureString(body.penaliteRetard) : row.penaliteRetard,
+    indexationLoyer: body.indexationLoyer !== undefined ? Boolean(body.indexationLoyer) : row.indexationLoyer,
+    conditionsResiliation: body.conditionsResiliation !== undefined ? ensureString(body.conditionsResiliation) : row.conditionsResiliation,
+    clausesParticulieres: body.clausesParticulieres !== undefined ? ensureString(body.clausesParticulieres) : row.clausesParticulieres,
+    statut: body.statut !== undefined ? ensureString(body.statut) : row.statut,
+    updatedAt: new Date().toISOString(),
+  }))
+  recordAuditEvent({
+    actor: 'api',
+    action: 'update.contrat',
+    entityType: 'contrat',
+    entityId: id,
+    detail: `Mise a jour bail ${id}`,
+    severity: 'info',
+  })
+  return { data: updated }
+}
+
 export function deleteContratService(id) {
   const current = findContratById(id)
   if (!current) return { error: { status: 404, message: 'Contrat introuvable.' } }

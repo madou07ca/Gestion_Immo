@@ -117,6 +117,25 @@ export default function EspacePortal() {
               </Link>
             ) : (
               <form onSubmit={handleLogin} className="max-w-xl rounded-xl border border-night-600 bg-night-900/50 p-4 md:p-5 grid md:grid-cols-3 gap-3">
+                {(slug === 'locataire' || slug === 'proprietaire') && (
+                  <p className="md:col-span-3 text-xs text-gray-500">
+                    Demo code <span className="text-gray-400">1234</span> : utilisez un email present dans les donnees (
+                    {slug === 'locataire' ? 'ex. mariama.bah@example.gn' : 'ex. fatou.barry@example.gn'}
+                    ). Les emails agence (centre@immo-connect.gn) sont pour{' '}
+                    <Link to="/espace/agence" className="text-gold-400 hover:underline">
+                      /espace/agence
+                    </Link>
+                    .
+                  </p>
+                )}
+                {(slug === 'agence' || slug === 'gestionnaire') && (
+                  <p className="md:col-span-3 text-xs text-gray-500">
+                    Comptes demo dans access-users : ex.{' '}
+                    <span className="text-gray-400">centre@immo-connect.gn</span> ou{' '}
+                    <span className="text-gray-400">mouctar.sow@immo-connect.gn</span> (gestionnaire), code{' '}
+                    <span className="text-gray-400">1234</span>.
+                  </p>
+                )}
                 <input
                   type="email"
                   placeholder="Email"

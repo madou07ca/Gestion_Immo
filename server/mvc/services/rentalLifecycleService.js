@@ -372,6 +372,7 @@ export function updateCautionService(id, input) {
   if (!findCautionById(id)) return { error: { status: 404, message: 'Caution introuvable.' } }
   const row = updateCaution(id, (item) => ({
     ...item,
+    montantEncaisse: input.montantEncaisse !== undefined ? Number(input.montantEncaisse) : item.montantEncaisse,
     statut: input.statut !== undefined ? ensureString(input.statut) : item.statut,
     lignesRetenue: input.lignesRetenue !== undefined ? input.lignesRetenue : item.lignesRetenue,
     dateRestitution: input.dateRestitution !== undefined ? ensureString(input.dateRestitution) : item.dateRestitution,

@@ -7,6 +7,7 @@ import {
   signContrat,
   getContrats,
   updateContratStatus,
+  updateContratFieldsService,
   deleteContratService,
 } from '../services/operationsService.js'
 import { assertSameAgence } from '../utils/backofficeScope.js'
@@ -113,6 +114,15 @@ export function updateContratStatusController(req, res) {
   const blocked = assertContratScope(req, contrat)
   if (blocked) return res.status(blocked.status).json({ ok: false, error: blocked.message })
   const result = updateContratStatus(req.params.id, req.body?.statut)
+  if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
+  res.json({ ok: true, data: result.data })
+}
+
+export function updateContratFieldsController(req, res) {
+  const contrat = findContratById(req.params.id)
+  const blocked = assertContratScope(req, contrat)
+  if (blocked) return res.status(blocked.status).json({ ok: false, error: blocked.message })
+  const result = updateContratFieldsService(req.params.id, req.body || {})
   if (result.error) return res.status(result.error.status).json({ ok: false, error: result.error.message })
   res.json({ ok: true, data: result.data })
 }

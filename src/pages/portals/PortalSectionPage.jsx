@@ -121,13 +121,15 @@ function SimpleTable({ columns, rows, rowKey }) {
       </p>
     )
   }
+  const lastStickyClass =
+    'sticky right-0 z-10 bg-night-950/95 backdrop-blur-sm border-l border-night-600/90 shadow-[-10px_0_14px_-8px_rgba(0,0,0,0.65)]'
   return (
     <div className="rounded-xl border border-night-600 overflow-hidden">
       <div className="md:hidden divide-y divide-night-600">
         {rows.map((row, i) => (
           <div key={rowKey(row, i)} className="bg-night-900/30 p-3 space-y-2">
-            {columns.map((c) => (
-              <div key={c.key} className="flex items-start justify-between gap-3 text-sm">
+            {columns.map((c, idx) => (
+              <div key={`${c.key}-${idx}`} className="flex items-start justify-between gap-3 text-sm">
                 <span className="text-gray-500 shrink-0">{c.label}</span>
                 <span className="text-gray-300 text-right break-words">
                   {c.render ? c.render(row) : row[c.key]}
@@ -141,8 +143,11 @@ function SimpleTable({ columns, rows, rowKey }) {
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-night-600 bg-night-800/80">
-              {columns.map((c) => (
-                <th key={c.key} className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">
+              {columns.map((c, idx) => (
+                <th
+                  key={`${c.key}-h-${idx}`}
+                  className={`px-4 py-3 font-medium text-gray-400 whitespace-nowrap ${idx === columns.length - 1 ? lastStickyClass : ''}`}
+                >
                   {c.label}
                 </th>
               ))}
@@ -151,8 +156,11 @@ function SimpleTable({ columns, rows, rowKey }) {
           <tbody className="divide-y divide-night-600">
             {rows.map((row, i) => (
               <tr key={rowKey(row, i)} className="hover:bg-night-800/40">
-                {columns.map((c) => (
-                  <td key={c.key} className="px-4 py-3 text-gray-300">
+                {columns.map((c, idx) => (
+                  <td
+                    key={`${c.key}-${idx}`}
+                    className={`px-4 py-3 text-gray-300 ${idx === columns.length - 1 ? lastStickyClass : ''}`}
+                  >
                     {c.render ? c.render(row) : row[c.key]}
                   </td>
                 ))}
@@ -182,7 +190,7 @@ function PaginationControls({ page, total, onPrev, onNext }) {
 
 export default function PortalSectionPage() {
   const { slug, section } = useParams()
-  const isBackoffice = slug === 'admin' || slug === 'agence'
+  const isBackoffice = slug === 'admin' || slug === 'agence' || slug === 'gestionnaire'
   const navigate = useNavigate()
   const portal = espacePortals[slug]
   const data = isBackoffice ? tables.gestionnaire?.[section] : tables[slug]?.[section]
@@ -223,6 +231,13 @@ export default function PortalSectionPage() {
   const [gestionnaireRoles, setGestionnaireRoles] = useState(() => gestionnaireData?.['roles-permissions'] || [])
   const [gestionnaireBiens, setGestionnaireBiens] = useState(() => gestionnaireData?.biens || [])
   const [gestionnaireContrats, setGestionnaireContrats] = useState([])
+  const [backofficeEntities, setBackofficeEntities] = useState({
+    owners: [],
+    tenants: [],
+    properties: [],
+    contrats: [],
+  })
+  const [entityEditor, setEntityEditor] = useState(null)
   const [gestionnaireTickets, setGestionnaireTickets] = useState([])
   const [slaNotificationLogs, setSlaNotificationLogs] = useState([])
   const [slaSettings, setSlaSettings] = useState({
@@ -412,7 +427,9 @@ export default function PortalSectionPage() {
 
   const authSession = getAuthSession()
   const isAgencyPortal = slug === 'agence'
-  const scopedAgenceId = isAgencyPortal && authSession?.agenceId ? String(authSession.agenceId) : null
+  const isGestionnairePortal = slug === 'gestionnaire'
+  const isScopedPortal = isAgencyPortal || isGestionnairePortal
+  const scopedAgenceId = isScopedPortal && authSession?.agenceId ? String(authSession.agenceId) : null
 
   const title = section
     ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ')
@@ -424,7 +441,15 @@ export default function PortalSectionPage() {
     gestionnaire: { create: true, update: true, delete: false },
     consultation: { create: false, update: false, delete: false },
   }
-  const effectiveProfile = isAgencyPortal ? 'admin' : accessProfile
+  const internalRole = authSession?.internalRole || ''
+  const effectiveProfile =
+    slug === 'admin' || slug === 'agence'
+      ? 'admin'
+      : slug === 'gestionnaire'
+        ? internalRole === 'lecture_seule'
+          ? 'consultation'
+          : 'admin'
+        : accessProfile
   const can = (action) => permissionMap[effectiveProfile]?.[action]
   const isAdminPortal = slug === 'admin'
 
@@ -568,7 +593,7 @@ export default function PortalSectionPage() {
           slaSettingsRes.json().then((p) => p?.data || {}),
         ])
 
-        const aid = slug === 'agence' && authSession?.agenceId ? String(authSession.agenceId) : null
+        const aid = scopedAgenceId
         if (aid && Array.isArray(ownersData)) {
           ownersData = ownersData.filter((o) => String(o.agenceId || '') === aid)
         }
@@ -614,6 +639,12 @@ export default function PortalSectionPage() {
         setGestionnaireLocataires((prev) => (tenantRows.length > 0 ? tenantRows : prev))
         setGestionnaireBiens((prev) => (propertyRows.length > 0 ? propertyRows : prev))
         setGestionnaireContrats(Array.isArray(contratsData) ? contratsData.map((item) => mapContratToRow(item, propertiesData, tenantsData)) : [])
+        setBackofficeEntities({
+          owners: Array.isArray(ownersData) ? ownersData : [],
+          tenants: Array.isArray(tenantsData) ? tenantsData : [],
+          properties: Array.isArray(propertiesData) ? propertiesData : [],
+          contrats: Array.isArray(contratsData) ? contratsData : [],
+        })
         setGestionnaireTickets(Array.isArray(ticketsData) ? ticketsData : [])
         setSlaNotificationLogs(Array.isArray(slaLogsData) ? slaLogsData : [])
         setSlaSettings((prev) => ({ ...prev, ...(slaSettingsData || {}) }))
@@ -645,12 +676,12 @@ export default function PortalSectionPage() {
   }, [slug, isBackoffice, scopedAgenceId])
 
   useEffect(() => {
-    if (!isAgencyPortal || !scopedAgenceId) return
+    if (!isScopedPortal || !scopedAgenceId) return
     setAdminBiFilters((prev) => ({ ...prev, agenceId: scopedAgenceId }))
-  }, [isAgencyPortal, scopedAgenceId])
+  }, [isScopedPortal, scopedAgenceId])
 
   useEffect(() => {
-    if (!isAdminPortal && !isAgencyPortal) return
+    if (!isAdminPortal && !isScopedPortal) return
     let isMounted = true
     const loadAdminOverview = async () => {
       try {
@@ -666,7 +697,7 @@ export default function PortalSectionPage() {
           return
         }
         setAdminOverviewFeedback('')
-        const aid = isAgencyPortal && scopedAgenceId ? scopedAgenceId : null
+        const aid = isScopedPortal && scopedAgenceId ? scopedAgenceId : null
         const matchesAgence = (row) =>
           !aid || !row || row.agenceId === undefined || row.agenceId === null || String(row.agenceId) === aid
         const nextOverview = {
@@ -703,7 +734,7 @@ export default function PortalSectionPage() {
     return () => {
       isMounted = false
     }
-  }, [isAdminPortal, isAgencyPortal, scopedAgenceId])
+  }, [isAdminPortal, isScopedPortal, scopedAgenceId])
 
   useEffect(() => {
     if (!isBackoffice || section !== 'pilotage-locatif') return
@@ -760,7 +791,7 @@ export default function PortalSectionPage() {
   }, [isBackoffice, section, scopedAgenceId])
 
   useEffect(() => {
-    if (!isAdminPortal && !isAgencyPortal) return
+    if (!isAdminPortal && !isScopedPortal) return
     if (!adminSearchTerm.trim()) {
       setAdminSearchResults([])
       return
@@ -788,7 +819,7 @@ export default function PortalSectionPage() {
     }
     run()
     return () => { active = false }
-  }, [isAdminPortal, isAgencyPortal, scopedAgenceId, adminSearchTerm])
+  }, [isAdminPortal, isScopedPortal, scopedAgenceId, adminSearchTerm])
 
   useEffect(() => {
     if (slug !== 'agence' && slug !== 'gestionnaire') return
@@ -1079,8 +1110,8 @@ export default function PortalSectionPage() {
       setGestionnaireFeedback('Renseignez au minimum le nom et l email.')
       return
     }
-    const resolvedAgenceUser = isAdminPortal ? userForm.agenceId : isAgencyPortal ? scopedAgenceId : ''
-    if ((isAdminPortal || isAgencyPortal) && !resolvedAgenceUser) {
+    const resolvedAgenceUser = isAdminPortal ? userForm.agenceId : isScopedPortal ? scopedAgenceId : ''
+    if ((isAdminPortal || isScopedPortal) && !resolvedAgenceUser) {
       setGestionnaireFeedback('Selectionnez une agence de rattachement.')
       return
     }
@@ -1108,7 +1139,7 @@ export default function PortalSectionPage() {
           adresse: userForm.adresse.trim() || undefined,
           profession: userForm.profession.trim() || undefined,
           revenuMensuel: userForm.revenuMensuel ? Number(userForm.revenuMensuel) : undefined,
-          agenceId: isAdminPortal ? userForm.agenceId : isAgencyPortal ? scopedAgenceId : undefined,
+          agenceId: isAdminPortal ? userForm.agenceId : isScopedPortal ? scopedAgenceId : undefined,
         }),
       })
       const payload = await res.json()
@@ -1123,8 +1154,10 @@ export default function PortalSectionPage() {
 
       if (userForm.type === 'proprietaire') {
         setGestionnaireProprietaires((prev) => [row, ...prev])
+        setBackofficeEntities((prev) => ({ ...prev, owners: [payload.data, ...prev.owners] }))
       } else {
         setGestionnaireLocataires((prev) => [row, ...prev])
+        setBackofficeEntities((prev) => ({ ...prev, tenants: [payload.data, ...prev.tenants] }))
       }
       setUserForm({
         type: userForm.type,
@@ -1253,10 +1286,10 @@ export default function PortalSectionPage() {
       setGestionnaireFeedback('Renseignez role, email et code.')
       return
     }
-    const accessAgenceId = isAgencyPortal && scopedAgenceId
+    const accessAgenceId = isScopedPortal && scopedAgenceId
       ? scopedAgenceId
       : accessForm.agenceId
-    if ((isAdminPortal || isAgencyPortal) && accessForm.role === 'gestionnaire' && !accessAgenceId) {
+    if ((isAdminPortal || isScopedPortal) && accessForm.role === 'gestionnaire' && !accessAgenceId) {
       setGestionnaireFeedback('Selectionnez une agence pour ce gestionnaire.')
       return
     }
@@ -1445,6 +1478,7 @@ export default function PortalSectionPage() {
         gestionnaireLocataires.map((row) => ({ id: row.id, nom: row.nom })),
       )
       setGestionnaireBiens((prev) => [propertyRow, ...prev])
+      setBackofficeEntities((prev) => ({ ...prev, properties: [payload.data, ...prev.properties] }))
       setBienForm({
         titre: '',
         adresse: '',
@@ -1612,6 +1646,11 @@ export default function PortalSectionPage() {
         mapContratToRow(payload.data, [{ ...updatedBien, adresse: updatedBien.adresse || '' }], gestionnaireLocataires),
         ...prev,
       ])
+      setBackofficeEntities((prev) => ({
+        ...prev,
+        contrats: payload.data ? [payload.data, ...prev.contrats] : prev.contrats,
+        properties: prev.properties.map((p) => (p.id === updatedBien.id ? updatedBien : p)),
+      }))
       setContratForm({
         bienId: '',
         locataireId: '',
@@ -1683,7 +1722,223 @@ export default function PortalSectionPage() {
         return
       }
       setGestionnaireContrats((prev) => prev.filter((row) => row.id !== contratId))
+      setBackofficeEntities((prev) => ({
+        ...prev,
+        contrats: prev.contrats.filter((c) => c.id !== contratId),
+      }))
       setGestionnaireFeedback('Contrat supprime.')
+    } catch {
+      setGestionnaireFeedback('Connexion impossible au serveur API.')
+    } finally {
+      setGestionnaireSubmitting(false)
+    }
+  }
+
+  const patchEntityDraft = (patch) => {
+    setEntityEditor((prev) => (prev ? { ...prev, draft: { ...prev.draft, ...patch } } : null))
+  }
+
+  const saveEntityEditor = async () => {
+    if (!entityEditor || !can('update')) return
+    const { kind, id, draft } = entityEditor
+    setGestionnaireSubmitting(true)
+    try {
+      let res
+      let payload
+      if (kind === 'proprietaire') {
+        res = await portalApiFetch(`${API_BASE}/proprietaires/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nom: draft.nom?.trim(),
+            prenom: draft.prenom?.trim(),
+            email: draft.email?.trim(),
+            telephone: draft.telephone?.trim(),
+            adresse: draft.adresse?.trim(),
+            statut: draft.statut,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour proprietaire impossible.')
+          return
+        }
+        setBackofficeEntities((prev) => ({
+          ...prev,
+          owners: prev.owners.map((o) => (o.id === id ? payload.data : o)),
+        }))
+        setGestionnaireProprietaires((prev) => prev.map((row) => (row.id === id ? mapOwnerToRow(payload.data) : row)))
+      } else if (kind === 'locataire') {
+        res = await portalApiFetch(`${API_BASE}/locataires/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nom: draft.nom?.trim(),
+            prenom: draft.prenom?.trim(),
+            email: draft.email?.trim(),
+            telephone: draft.telephone?.trim(),
+            statut: draft.statut,
+            profession: draft.profession?.trim(),
+            adresseActuelle: draft.adresse?.trim(),
+            revenuMensuel: draft.revenuMensuel ? Number(draft.revenuMensuel) : undefined,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour locataire impossible.')
+          return
+        }
+        setBackofficeEntities((prev) => ({
+          ...prev,
+          tenants: prev.tenants.map((t) => (t.id === id ? payload.data : t)),
+        }))
+        setGestionnaireLocataires((prev) => prev.map((row) => (row.id === id ? mapTenantToRow(payload.data) : row)))
+      } else if (kind === 'bien') {
+        res = await portalApiFetch(`${API_BASE}/biens/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titre: draft.titre?.trim(),
+            type: draft.type,
+            usage: draft.usage || 'habitation',
+            adresse: draft.adresse?.trim(),
+            ville: draft.ville?.trim(),
+            quartier: draft.quartier?.trim(),
+            codePostal: draft.codePostal?.trim(),
+            proprietaireId: draft.proprietaireId,
+            locataireId: draft.locataireId || undefined,
+            statut: draft.statut,
+            surface: draft.surface ? Number(draft.surface) : undefined,
+            nbPieces: draft.nbPieces ? Number(draft.nbPieces) : undefined,
+            nbChambres: draft.nbChambres ? Number(draft.nbChambres) : undefined,
+            nbSdb: draft.nbSdb ? Number(draft.nbSdb) : undefined,
+            loyerMensuel: Number(draft.loyerMensuel),
+            chargesMensuelles: draft.chargesMensuelles ? Number(draft.chargesMensuelles) : 0,
+            depotGarantie: draft.depotGarantie ? Number(draft.depotGarantie) : 0,
+            fraisGestionMensuels: draft.fraisGestionMensuels ? Number(draft.fraisGestionMensuels) : 0,
+            taxeFonciereAnnuelle: draft.taxeFonciereAnnuelle ? Number(draft.taxeFonciereAnnuelle) : 0,
+            assuranceAnnuelle: draft.assuranceAnnuelle ? Number(draft.assuranceAnnuelle) : 0,
+            published: Boolean(draft.published),
+            description: draft.description?.trim() || undefined,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour bien impossible.')
+          return
+        }
+        const updated = payload.data
+        setBackofficeEntities((prev) => ({
+          ...prev,
+          properties: prev.properties.map((p) => (p.id === id ? updated : p)),
+        }))
+        setGestionnaireBiens((prev) =>
+          prev.map((row) =>
+            row.ref === id
+              ? mapPropertyToRow(updated, backofficeEntities.owners, backofficeEntities.tenants)
+              : row,
+          ),
+        )
+      } else if (kind === 'contrat') {
+        res = await portalApiFetch(`${API_BASE}/contrats/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dateDebut: draft.dateDebut,
+            dateFin: draft.dateFin,
+            dateSignature: draft.dateSignature || undefined,
+            dureeMois: draft.dureeMois ? Number(draft.dureeMois) : undefined,
+            loyerMensuel: Number(draft.loyerMensuel),
+            chargesMensuelles: draft.chargesMensuelles !== '' ? Number(draft.chargesMensuelles) : undefined,
+            depotGarantie: draft.depotGarantie !== '' ? Number(draft.depotGarantie) : undefined,
+            modalitePaiement: draft.modalitePaiement,
+            jourEcheance: draft.jourEcheance ? Number(draft.jourEcheance) : undefined,
+            penaliteRetard: draft.penaliteRetard || undefined,
+            conditionsResiliation: draft.conditionsResiliation || undefined,
+            clausesParticulieres: draft.clausesParticulieres || undefined,
+            statut: draft.statut,
+            indexationLoyer: Boolean(draft.indexationLoyer),
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour contrat impossible.')
+          return
+        }
+        const updated = payload.data
+        setBackofficeEntities((prev) => ({
+          ...prev,
+          contrats: prev.contrats.map((c) => (c.id === id ? updated : c)),
+        }))
+        setGestionnaireContrats((prev) =>
+          prev.map((row) =>
+            row.id === id ? mapContratToRow(updated, backofficeEntities.properties, backofficeEntities.tenants) : row,
+          ),
+        )
+      } else if (kind === 'edl') {
+        res = await portalApiFetch(`${API_BASE}/admin/lifecycle/etats-lieux/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: draft.type,
+            statut: draft.statut,
+            observations: draft.observations?.trim(),
+            pdfUrl: draft.pdfUrl?.trim() || undefined,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour EDL impossible.')
+          return
+        }
+        setEdlRows((prev) => prev.map((row) => (row.id === id ? payload.data : row)))
+      } else if (kind === 'caution') {
+        res = await portalApiFetch(`${API_BASE}/admin/lifecycle/cautions/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            montantEncaisse: draft.montantEncaisse !== '' ? Number(draft.montantEncaisse) : undefined,
+            statut: draft.statut,
+            notes: draft.notes?.trim(),
+            dateRestitution: draft.dateRestitution || undefined,
+            montantRestitue: draft.montantRestitue !== '' ? Number(draft.montantRestitue) : undefined,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour caution impossible.')
+          return
+        }
+        setCautionRows((prev) => prev.map((row) => (row.id === id ? payload.data : row)))
+      } else if (kind === 'gestionnaire') {
+        res = await portalApiFetch(`${API_BASE}/agence/gestionnaires/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nom: draft.nom?.trim(),
+            email: draft.email?.trim(),
+            telephone: draft.telephone?.trim(),
+            poste: draft.poste?.trim(),
+            statut: draft.statut,
+            internalRole: draft.internalRole,
+          }),
+        })
+        payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload?.data) {
+          setGestionnaireFeedback(payload?.error || 'Mise a jour gestionnaire impossible.')
+          return
+        }
+        const updated = payload.data
+        setGestionnaireAccess((prev) => prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)))
+        setAgenceWorkspace((prev) => ({
+          ...prev,
+          gestionnaires: Array.isArray(prev.gestionnaires)
+            ? prev.gestionnaires.map((g) => (g.id === updated.id ? { ...g, ...updated } : g))
+            : prev.gestionnaires,
+        }))
+      }
+      setEntityEditor(null)
+      setGestionnaireFeedback('Modifications enregistrees.')
     } catch {
       setGestionnaireFeedback('Connexion impossible au serveur API.')
     } finally {
@@ -2758,308 +3013,6 @@ export default function PortalSectionPage() {
     }
   }
 
-  if (slug === 'gestionnaire') {
-    const normalizedSearchAgence = agenceSearch.trim().toLowerCase()
-    const agenceFilter = (rows, fields) =>
-      !normalizedSearchAgence
-        ? rows
-        : rows.filter((row) => fields.some((field) => String(row[field] || '').toLowerCase().includes(normalizedSearchAgence))
-        )
-    const agencePaginate = (rows) => {
-      const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
-      const safePage = Math.min(agencePage, totalPages)
-      const start = (safePage - 1) * PAGE_SIZE
-      return { rows: rows.slice(start, start + PAGE_SIZE), totalPages, safePage }
-    }
-
-    if (section === 'proprietaires' || section === 'locataires') {
-      const actorType = section
-      const rows = agenceFilter(agenceWorkspace[actorType], ['id', 'nom', 'email', 'telephone', 'statut'])
-      const paginated = agencePaginate(rows)
-      content = (
-        <div className="space-y-5">
-          <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid md:grid-cols-2 gap-4">
-            <label className="text-sm">
-              <span className="text-gray-400">Recherche</span>
-              <input
-                value={agenceSearch}
-                onChange={(e) => {
-                  setAgenceSearch(e.target.value)
-                  setAgencePage(1)
-                }}
-                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="text-gray-400">Nom complet</span>
-              <input
-                value={agenceActorForm.nom}
-                onChange={(e) => setAgenceActorForm((prev) => ({ ...prev, nom: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="text-gray-400">Email</span>
-              <input
-                type="email"
-                value={agenceActorForm.email}
-                onChange={(e) => setAgenceActorForm((prev) => ({ ...prev, email: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="text-gray-400">Telephone</span>
-              <input
-                value={agenceActorForm.telephone}
-                onChange={(e) => setAgenceActorForm((prev) => ({ ...prev, telephone: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
-              />
-            </label>
-            <label className="text-sm md:col-span-2">
-              <span className="text-gray-400">Piece d'identite (fichier, optionnel)</span>
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.webp"
-                onChange={(e) => setAgenceActorIdentityFile(e.target.files?.[0] || null)}
-                className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                {agenceActorIdentityFile ? `Selectionne: ${agenceActorIdentityFile.name}` : 'Formats: PDF/JPG/PNG/WEBP, max 3 Mo'}
-              </p>
-            </label>
-            <button type="button" onClick={() => submitAgenceActor(actorType)} disabled={agenceSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
-              {agenceSubmitting ? 'Enregistrement...' : `Ajouter ${actorType === 'proprietaires' ? 'proprietaire' : 'locataire'}`}
-            </button>
-          </div>
-          <SimpleTable
-            rowKey={(r) => r.id}
-            columns={[
-              { key: 'id', label: 'ID' },
-              { key: 'nom', label: 'Nom' },
-              { key: 'email', label: 'Email' },
-              { key: 'telephone', label: 'Telephone' },
-              {
-                key: 'piece',
-                label: 'Piece ID',
-                render: (r) => (
-                  r.pieceIdentiteFile?.dataUrl
-                    ? <a href={r.pieceIdentiteFile.dataUrl} target="_blank" rel="noreferrer" className="text-gold-400 hover:underline">{r.pieceIdentiteFile.name || 'Voir'}</a>
-                    : <span className="text-gray-500">-</span>
-                ),
-              },
-              { key: 'statut', label: 'Statut' },
-              {
-                key: 'actions',
-                label: 'Actions',
-                render: (r) => (
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => toggleAgenceActorStatus(actorType, r)} className="rounded border border-night-500 px-2 py-1 text-xs text-gray-300">
-                      {r.statut === 'Actif' ? 'Desactiver' : 'Activer'}
-                    </button>
-                    <button type="button" onClick={() => deleteAgenceActor(actorType, r.id)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300">
-                      Supprimer
-                    </button>
-                  </div>
-                ),
-              },
-            ]}
-            rows={paginated.rows}
-          />
-          <PaginationControls
-            page={paginated.safePage}
-            total={paginated.totalPages}
-            onPrev={() => setAgencePage((p) => Math.max(1, p - 1))}
-            onNext={() => setAgencePage((p) => Math.min(paginated.totalPages, p + 1))}
-          />
-        </div>
-      )
-    } else if (section === 'gestionnaires' && slug === 'agence') {
-      const rows = agenceFilter(agenceWorkspace.gestionnaires, ['id', 'nom', 'email', 'statut'])
-      const paginated = agencePaginate(rows)
-      content = (
-        <div className="space-y-5">
-          <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid md:grid-cols-3 gap-4">
-            <input value={agenceGestionnaireForm.nom} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, nom: e.target.value }))} placeholder="Nom" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <input value={agenceGestionnaireForm.email} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <input value={agenceGestionnaireForm.code} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, code: e.target.value }))} placeholder="Code temporaire" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <button type="button" onClick={submitAgenceGestionnaire} disabled={agenceSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">Ajouter gestionnaire</button>
-          </div>
-          <SimpleTable
-            rowKey={(r) => r.id}
-            columns={[
-              { key: 'id', label: 'ID' },
-              { key: 'nom', label: 'Nom' },
-              { key: 'email', label: 'Email' },
-              { key: 'statut', label: 'Statut' },
-              {
-                key: 'actions',
-                label: 'Actions',
-                render: (r) => (
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => toggleAgenceActorStatus('gestionnaires', r)} className="rounded border border-night-500 px-2 py-1 text-xs text-gray-300">
-                      {r.statut === 'Actif' ? 'Desactiver' : 'Activer'}
-                    </button>
-                    <button type="button" onClick={() => deleteAgenceActor('gestionnaires', r.id)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300">Supprimer</button>
-                  </div>
-                ),
-              },
-            ]}
-            rows={paginated.rows}
-          />
-        </div>
-      )
-    } else if (section === 'biens') {
-      const rows = agenceFilter(
-        agenceWorkspace.biens.map((item) => mapPropertyToRow(item, agenceWorkspace.proprietaires, agenceWorkspace.locataires)),
-        ['ref', 'adresse', 'type', 'proprietaire', 'locataire', 'statut'],
-      )
-      const paginated = agencePaginate(rows)
-      content = (
-        <div className="space-y-5">
-          <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid md:grid-cols-2 gap-4">
-            <input value={agenceBienForm.titre} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, titre: e.target.value }))} placeholder="Titre du bien" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <input value={agenceBienForm.adresse} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, adresse: e.target.value }))} placeholder="Adresse" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <select value={agenceBienForm.proprietaireId} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, proprietaireId: e.target.value }))} className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200">
-              <option value="">Proprietaire</option>
-              {agenceWorkspace.proprietaires.map((item) => <option key={item.id} value={item.id}>{item.nom}</option>)}
-            </select>
-            <select value={agenceBienForm.locataireId} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, locataireId: e.target.value }))} className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200">
-              <option value="">Locataire (optionnel)</option>
-              {agenceWorkspace.locataires.map((item) => <option key={item.id} value={item.id}>{item.nom}</option>)}
-            </select>
-            <input type="number" min="0" value={agenceBienForm.loyerMensuel} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, loyerMensuel: e.target.value }))} placeholder="Loyer mensuel" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <input type="number" min="0" value={agenceBienForm.chargesMensuelles} onChange={(e) => setAgenceBienForm((prev) => ({ ...prev, chargesMensuelles: e.target.value }))} placeholder="Charges mensuelles" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
-            <label className="text-sm md:col-span-2">
-              <span className="text-gray-400">Images du bien (optionnel)</span>
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setAgenceBienDragOver(true)
-                }}
-                onDragLeave={() => setAgenceBienDragOver(false)}
-                onDrop={async (e) => {
-                  e.preventDefault()
-                  setAgenceBienDragOver(false)
-                  const dropped = Array.from(e.dataTransfer.files || []).filter((file) => file.type.startsWith('image/'))
-                  if (dropped.length === 0) return
-                  await applyAgenceBienImages(dropped)
-                }}
-                className={`mt-1 rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
-                  agenceBienDragOver ? 'border-gold-400 bg-gold-500/10 text-gold-200' : 'border-night-500 bg-night-950/30 text-gray-500'
-                }`}
-              >
-                Glissez-déposez vos images ici ou utilisez le sélecteur ci-dessous.
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={async (e) => {
-                  const selected = Array.from(e.target.files || [])
-                  await applyAgenceBienImages(selected)
-                }}
-                className="mt-1 block w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-sm text-gray-200 file:mr-3 file:rounded file:border-0 file:bg-gold-500/20 file:px-3 file:py-1 file:text-gold-300"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                {agenceBienImageFiles.length > 0
-                  ? `${agenceBienImageFiles.length} image(s): ${agenceBienImageFiles.map((f) => f.name).join(', ')}`
-                  : 'Jusqu a 8 images (max 4 Mo par image)'}
-              </p>
-              {agenceBienImagePreviews.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {agenceBienImagePreviews.map((preview, idx) => (
-                    <div key={`${agenceBienImageFiles[idx]?.name || idx}-${idx}`} className="rounded-lg border border-night-600 bg-night-950/40 p-2">
-                      <img
-                        src={preview}
-                        alt={`Apercu image ${idx + 1}`}
-                        className="w-full h-24 object-cover rounded"
-                        loading="lazy"
-                      />
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <p className="text-[10px] text-gray-400 truncate">
-                          {agenceBienImageFiles[idx]?.name || `Image ${idx + 1}`}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAgenceBienImageFiles((prev) => prev.filter((_, i) => i !== idx))
-                            setAgenceBienImagePreviews((prev) => prev.filter((_, i) => i !== idx))
-                          }}
-                          className="text-[10px] text-red-300 hover:text-red-200"
-                        >
-                          Retirer
-                        </button>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveAgenceBienImage(idx, idx - 1)}
-                            disabled={idx === 0}
-                            className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
-                            title="Monter"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveAgenceBienImage(idx, idx + 1)}
-                            disabled={idx === agenceBienImagePreviews.length - 1}
-                            className="text-[10px] text-gray-400 hover:text-gray-200 disabled:opacity-30"
-                            title="Descendre"
-                          >
-                            ↓
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </label>
-            <button type="button" onClick={submitAgenceBien} disabled={agenceSubmitting} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50">
-              Ajouter bien
-            </button>
-          </div>
-          <SimpleTable
-            rowKey={(r) => r.ref}
-            columns={[
-              { key: 'ref', label: 'Reference' },
-              { key: 'adresse', label: 'Adresse' },
-              { key: 'proprietaire', label: 'Proprietaire' },
-              { key: 'locataire', label: 'Locataire' },
-              { key: 'coutTotalMensuel', label: 'Cout total/mois' },
-              {
-                key: 'actions',
-                label: 'Actions',
-                render: (r) => (
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => toggleAgenceBien(agenceWorkspace.biens.find((item) => item.id === r.ref), { published: !r.published })} className="rounded border border-gold-500/40 px-2 py-1 text-xs text-gold-300">
-                      {r.published ? 'Depublier' : 'Publier'}
-                    </button>
-                    <button type="button" onClick={() => toggleAgenceBien(agenceWorkspace.biens.find((item) => item.id === r.ref), { statut: r.statut === 'Disponible' ? 'loue' : 'disponible' })} className="rounded border border-night-500 px-2 py-1 text-xs text-gray-300">
-                      Changer statut
-                    </button>
-                    <button type="button" onClick={() => deleteAgenceActor('biens', r.ref)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300">Supprimer</button>
-                  </div>
-                ),
-              },
-            ]}
-            rows={paginated.rows}
-          />
-        </div>
-      )
-    } else if (section === 'reporting') {
-      content = (
-        <Suspense fallback={<InlineFeedback message="Chargement du reporting..." />}>
-          <PortalReportingContent
-            slug={slug}
-            agenceWorkspace={agenceWorkspace}
-            gestionnaireTickets={slug === 'gestionnaire' ? gestionnaireTickets : []}
-          />
-        </Suspense>
-      )
-    }
-  }
-
   if (isBackoffice) {
     if (section === 'dashboard-search') {
       content = (
@@ -3109,12 +3062,12 @@ export default function PortalSectionPage() {
       content = (
         <div className="space-y-8">
           <p className="text-sm text-gray-400 max-w-3xl">
-            {isAgencyPortal
+            {isScopedPortal
               ? 'Pilotage limite a votre agence : impayes, echeances de baux et signaux operationnels.'
               : 'Vue transverse immobilier : impayes, echeances de baux, vacance et hygiene des acces. Les indicateurs proviennent des donnees reelles chargees par l API admin.'}
           </p>
-          <div className={`rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 ${isAgencyPortal ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-            {!isAgencyPortal && (
+          <div className={`rounded-xl border border-night-600 bg-night-800/30 p-4 grid gap-3 ${isScopedPortal ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {!isScopedPortal && (
             <label className="text-sm">
               <span className="text-gray-400">Agence</span>
               <select
@@ -3154,13 +3107,13 @@ export default function PortalSectionPage() {
                 <option value="365">12 mois</option>
               </select>
             </label>
-            <div className={`${isAgencyPortal ? 'md:col-span-2' : 'md:col-span-3'} flex justify-end`}>
+            <div className={`${isScopedPortal ? 'md:col-span-2' : 'md:col-span-3'} flex justify-end`}>
               <button
                 type="button"
                 onClick={() =>
                   setAdminBiFilters((prev) => ({
                     ...prev,
-                    agenceId: isAgencyPortal && scopedAgenceId ? scopedAgenceId : 'all',
+                    agenceId: isScopedPortal && scopedAgenceId ? scopedAgenceId : 'all',
                     severity: 'all',
                     horizon: '90',
                   }))
@@ -3643,7 +3596,7 @@ export default function PortalSectionPage() {
                   </select>
                 </label>
               )}
-              {isAgencyPortal && scopedAgenceId && (
+              {isScopedPortal && scopedAgenceId && (
                 <p className="text-sm text-gray-500 md:col-span-2">
                   Rattachement automatique a votre agence (profil directeur).
                 </p>
@@ -3684,7 +3637,49 @@ export default function PortalSectionPage() {
                 key: 'actions',
                 label: 'Actions',
                 render: (r) => (
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={!can('update') || gestionnaireSubmitting}
+                      onClick={() => {
+                        if (isProprietaireSection) {
+                          const full = backofficeEntities.owners.find((o) => o.id === r.id)
+                          if (!full) return
+                          setEntityEditor({
+                            kind: 'proprietaire',
+                            id: r.id,
+                            draft: {
+                              nom: full.nom || '',
+                              prenom: full.prenom || '',
+                              email: full.email || '',
+                              telephone: full.telephone || '',
+                              adresse: full.adresse || '',
+                              statut: full.statut || 'Actif',
+                            },
+                          })
+                        } else {
+                          const full = backofficeEntities.tenants.find((t) => t.id === r.id)
+                          if (!full) return
+                          setEntityEditor({
+                            kind: 'locataire',
+                            id: r.id,
+                            draft: {
+                              nom: full.nom || '',
+                              prenom: full.prenom || '',
+                              email: full.email || '',
+                              telephone: full.telephone || '',
+                              statut: full.statut || 'Actif',
+                              profession: full.profession || '',
+                              adresse: full.adresseActuelle || '',
+                              revenuMensuel: full.revenuMensuel ?? '',
+                            },
+                          })
+                        }
+                      }}
+                      className="text-amber-300 hover:underline disabled:opacity-40"
+                    >
+                      Fiche
+                    </button>
                     <button type="button" disabled={gestionnaireSubmitting} onClick={() => toggleUserStatus(isProprietaireSection ? 'proprietaire' : 'locataire', r.id)} className="text-sky-400 hover:underline disabled:opacity-40">
                       Modifier statut
                     </button>
@@ -3810,7 +3805,7 @@ export default function PortalSectionPage() {
                   className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
                 />
               </label>
-              {isAdminPortal && accessForm.role === 'gestionnaire' && (
+              {accessForm.role === 'gestionnaire' && isAdminPortal && (
                 <>
                   <label className="text-sm">
                     <span className="text-gray-400">Agence de rattachement</span>
@@ -3835,6 +3830,29 @@ export default function PortalSectionPage() {
                       <option value="gestionnaire_agence">Gestionnaire agence</option>
                       <option value="gestionnaire_finance">Gestionnaire finance</option>
                       <option value="gestionnaire_support">Gestionnaire support</option>
+                      <option value="directeur_agence">Directeur agence</option>
+                      <option value="lecture_seule">Lecture seule</option>
+                    </select>
+                  </label>
+                </>
+              )}
+              {accessForm.role === 'gestionnaire' && isScopedPortal && !isAdminPortal && (
+                <>
+                  <p className="text-sm text-gray-500 md:col-span-2">
+                    Rattachement automatique a votre agence pour ce gestionnaire.
+                  </p>
+                  <label className="text-sm md:col-span-2">
+                    <span className="text-gray-400">Role interne</span>
+                    <select
+                      value={accessForm.internalRole}
+                      onChange={(e) => setAccessForm((prev) => ({ ...prev, internalRole: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+                    >
+                      <option value="gestionnaire_agence">Gestionnaire agence</option>
+                      <option value="gestionnaire_finance">Gestionnaire finance</option>
+                      <option value="gestionnaire_support">Gestionnaire support</option>
+                      <option value="directeur_agence">Directeur agence</option>
+                      <option value="lecture_seule">Lecture seule</option>
                     </select>
                   </label>
                 </>
@@ -3854,10 +3872,10 @@ export default function PortalSectionPage() {
             rowKey={(r) => r.id}
             columns={[
               { key: 'role', label: 'Role' },
-              ...(isAdminPortal ? [{ key: 'agenceId', label: 'Agence' }] : []),
+              ...((isAdminPortal || isScopedPortal) ? [{ key: 'agenceId', label: 'Agence' }] : []),
               { key: 'nom', label: 'Nom' },
               { key: 'email', label: 'Email' },
-              ...(isAdminPortal ? [{ key: 'internalRole', label: 'Role interne' }] : []),
+              ...((isAdminPortal || isScopedPortal) ? [{ key: 'internalRole', label: 'Role interne' }] : []),
               { key: 'linkedId', label: 'ID lie' },
               {
                 key: 'statut',
@@ -3892,15 +3910,105 @@ export default function PortalSectionPage() {
           />
         </div>
       )
+    } else if (section === 'gestionnaires' && isScopedPortal) {
+      const normalizedEq = agenceSearch.trim().toLowerCase()
+      const gestEqFilter = (rows, fields) =>
+        !normalizedEq
+          ? rows
+          : rows.filter((row) => fields.some((field) => String(row[field] || '').toLowerCase().includes(normalizedEq)))
+      const gestEqPaginate = (rows) => {
+        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+        const safePage = Math.min(agencePage, totalPages)
+        const start = (safePage - 1) * PAGE_SIZE
+        return { rows: rows.slice(start, start + PAGE_SIZE), totalPages, safePage }
+      }
+      const rows = gestEqFilter(agenceWorkspace.gestionnaires, ['id', 'nom', 'email', 'statut'])
+      const paginated = gestEqPaginate(rows)
+      content = (
+        <div className="space-y-5">
+          <p className="text-sm text-gray-400 max-w-2xl">
+            Membres de votre equipe rattaches a la meme agence. Les suppressions respectent les droits cotes API.
+          </p>
+          <div className="rounded-xl border border-night-600 bg-night-800/30 p-4 grid md:grid-cols-3 gap-4">
+            <input value={agenceGestionnaireForm.nom} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, nom: e.target.value }))} placeholder="Nom" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
+            <input value={agenceGestionnaireForm.email} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
+            <input value={agenceGestionnaireForm.code} onChange={(e) => setAgenceGestionnaireForm((prev) => ({ ...prev, code: e.target.value }))} placeholder="Code temporaire" className="rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200" />
+            <button type="button" onClick={submitAgenceGestionnaire} disabled={agenceSubmitting || !can('create')} className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50 md:col-span-3 justify-self-start">
+              {agenceSubmitting ? 'Enregistrement...' : 'Ajouter gestionnaire'}
+            </button>
+          </div>
+          <label className="text-sm block max-w-md">
+            <span className="text-gray-400">Recherche</span>
+            <input
+              value={agenceSearch}
+              onChange={(e) => {
+                setAgenceSearch(e.target.value)
+                setAgencePage(1)
+              }}
+              className="mt-1 w-full rounded-lg border border-night-600 bg-night-900 px-3 py-2 text-gray-200"
+            />
+          </label>
+          <SimpleTable
+            rowKey={(r) => r.id}
+            columns={[
+              { key: 'id', label: 'ID' },
+              { key: 'nom', label: 'Nom' },
+              { key: 'email', label: 'Email' },
+              { key: 'statut', label: 'Statut' },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (r) => (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!can('update')}
+                      onClick={() => {
+                        const acc = gestionnaireAccess.find((a) => a.id === r.id)
+                        setEntityEditor({
+                          kind: 'gestionnaire',
+                          id: r.id,
+                          draft: {
+                            nom: r.nom || '',
+                            email: r.email || '',
+                            telephone: acc?.telephone || '',
+                            poste: acc?.poste || '',
+                            statut: r.statut || 'Actif',
+                            internalRole: acc?.internalRole || 'gestionnaire_agence',
+                          },
+                        })
+                      }}
+                      className="rounded border border-amber-500/40 px-2 py-1 text-xs text-amber-300 disabled:opacity-40"
+                    >
+                      Fiche
+                    </button>
+                    <button type="button" disabled={!can('update')} onClick={() => toggleAgenceActorStatus('gestionnaires', r)} className="rounded border border-night-500 px-2 py-1 text-xs text-gray-300 disabled:opacity-40">
+                      {r.statut === 'Actif' ? 'Desactiver' : 'Activer'}
+                    </button>
+                    <button type="button" disabled={!can('delete')} onClick={() => deleteAgenceActor('gestionnaires', r.id)} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300 disabled:opacity-40">Supprimer</button>
+                  </div>
+                ),
+              },
+            ]}
+            rows={paginated.rows}
+          />
+          <PaginationControls
+            page={paginated.safePage}
+            total={paginated.totalPages}
+            onPrev={() => setAgencePage((p) => Math.max(1, p - 1))}
+            onNext={() => setAgencePage((p) => Math.min(paginated.totalPages, p + 1))}
+          />
+        </div>
+      )
     } else if (section === 'agences') {
-      const scopedAgences = isAgencyPortal && scopedAgenceId
+      const scopedAgences = isScopedPortal && scopedAgenceId
         ? adminAgences.filter((a) => String(a.id) === scopedAgenceId)
         : adminAgences
       const filteredRows = filterBySearch(scopedAgences, ['id', 'nom', 'email', 'telephone', 'statut'])
       const paginated = paginate(filteredRows)
       content = (
         <div className="space-y-6">
-          {isAgencyPortal && (
+          {isScopedPortal && (
             <p className="text-sm text-gray-400 max-w-2xl">
               Fiche et informations de votre structure — les autres agences du reseau ne sont pas visibles ici.
             </p>
@@ -4513,12 +4621,50 @@ export default function PortalSectionPage() {
                 label: 'Publication',
                 render: (r) => <span className={r.published ? 'text-emerald-400' : 'text-gray-500'}>{r.published ? 'Publie' : 'Non publie'}</span>,
               },
-              { key: 'loyer', label: 'Loyer' },
               {
                 key: 'actions',
                 label: 'Actions',
                 render: (r) => (
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={!can('update') || gestionnaireSubmitting}
+                      onClick={() => {
+                        const full = backofficeEntities.properties.find((p) => p.id === r.ref)
+                        if (!full) return
+                        setEntityEditor({
+                          kind: 'bien',
+                          id: full.id,
+                          draft: {
+                            titre: full.titre || '',
+                            type: full.type || 'appartement',
+                            usage: full.usage || 'habitation',
+                            adresse: full.adresse || '',
+                            ville: full.ville || '',
+                            quartier: full.quartier || '',
+                            codePostal: full.codePostal || '',
+                            proprietaireId: full.proprietaireId || '',
+                            locataireId: full.locataireId || '',
+                            statut: full.statut || 'disponible',
+                            surface: full.surface ?? '',
+                            nbPieces: full.nbPieces ?? '',
+                            nbChambres: full.nbChambres ?? '',
+                            nbSdb: full.nbSdb ?? '',
+                            loyerMensuel: full.loyerMensuel ?? '',
+                            chargesMensuelles: full.chargesMensuelles ?? '',
+                            depotGarantie: full.depotGarantie ?? '',
+                            fraisGestionMensuels: full.fraisGestionMensuels ?? '',
+                            taxeFonciereAnnuelle: full.taxeFonciereAnnuelle ?? '',
+                            assuranceAnnuelle: full.assuranceAnnuelle ?? '',
+                            published: Boolean(full.published),
+                            description: full.description || '',
+                          },
+                        })
+                      }}
+                      className="text-amber-300 hover:underline disabled:opacity-40"
+                    >
+                      Fiche
+                    </button>
                     <button type="button" disabled={!can('update') || gestionnaireSubmitting} onClick={() => cycleBienStatus(r.ref)} className="text-sky-400 hover:underline disabled:opacity-40">
                       Modifier statut
                     </button>
@@ -4586,7 +4732,38 @@ export default function PortalSectionPage() {
                 key: 'actions',
                 label: 'Actions',
                 render: (r) => (
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={!can('update') || gestionnaireSubmitting}
+                      onClick={() => {
+                        const full = backofficeEntities.contrats.find((c) => c.id === r.id)
+                        if (!full) return
+                        setEntityEditor({
+                          kind: 'contrat',
+                          id: full.id,
+                          draft: {
+                            dateDebut: full.dateDebut || '',
+                            dateFin: full.dateFin || '',
+                            dateSignature: full.dateSignature || '',
+                            dureeMois: full.dureeMois ?? '',
+                            loyerMensuel: full.loyerMensuel ?? '',
+                            chargesMensuelles: full.chargesMensuelles ?? '',
+                            depotGarantie: full.depotGarantie ?? '',
+                            modalitePaiement: full.modalitePaiement || 'virement',
+                            jourEcheance: full.jourEcheance ?? '5',
+                            penaliteRetard: full.penaliteRetard || '',
+                            conditionsResiliation: full.conditionsResiliation || '',
+                            clausesParticulieres: full.clausesParticulieres || '',
+                            statut: full.statut || 'Signe',
+                            indexationLoyer: Boolean(full.indexationLoyer),
+                          },
+                        })
+                      }}
+                      className="text-amber-300 hover:underline disabled:opacity-40"
+                    >
+                      Fiche
+                    </button>
                     <a
                       href={`${API_BASE}/contrats/${r.id}/download`}
                       className="text-gold-300 hover:underline"
@@ -4763,9 +4940,30 @@ export default function PortalSectionPage() {
                 key: 'actions',
                 label: 'Actions',
                 render: (r) => (
-                  <button type="button" onClick={() => deleteEdl(r.id)} className="text-xs text-red-400 hover:underline">
-                    Supprimer
-                  </button>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <button
+                      type="button"
+                      disabled={!can('update')}
+                      onClick={() => {
+                        setEntityEditor({
+                          kind: 'edl',
+                          id: r.id,
+                          draft: {
+                            type: r.type || 'entree',
+                            statut: r.statut || 'brouillon',
+                            observations: r.observations || '',
+                            pdfUrl: r.pdfUrl || '',
+                          },
+                        })
+                      }}
+                      className="text-amber-300 hover:underline disabled:opacity-40"
+                    >
+                      Modifier
+                    </button>
+                    <button type="button" onClick={() => deleteEdl(r.id)} className="text-red-400 hover:underline">
+                      Supprimer
+                    </button>
+                  </div>
                 ),
               },
             ]}
@@ -4924,6 +5122,32 @@ export default function PortalSectionPage() {
                 key: 'notes',
                 label: 'Notes',
                 render: (r) => <span className="line-clamp-2 max-w-xs">{r.notes || '—'}</span>,
+              },
+              {
+                key: 'edit',
+                label: 'Edition',
+                render: (r) => (
+                  <button
+                    type="button"
+                    disabled={!can('update')}
+                    onClick={() => {
+                      setEntityEditor({
+                        kind: 'caution',
+                        id: r.id,
+                        draft: {
+                          montantEncaisse: r.montantEncaisse ?? '',
+                          statut: r.statut || 'detenu',
+                          notes: r.notes || '',
+                          dateRestitution: r.dateRestitution || '',
+                          montantRestitue: r.montantRestitue ?? '',
+                        },
+                      })
+                    }}
+                    className="text-xs text-amber-300 hover:underline disabled:opacity-40"
+                  >
+                    Fiche
+                  </button>
+                ),
               },
             ]}
             rows={cautionRows}
@@ -5254,7 +5478,7 @@ export default function PortalSectionPage() {
 
       content = (
         <div className="space-y-5">
-          {isAgencyPortal && (
+          {isScopedPortal && (
             <p className="text-sm text-gray-500">
               Reporting limite a votre agence (filtres multi-agences reserves au pilotage plateforme).
             </p>
@@ -5341,6 +5565,16 @@ export default function PortalSectionPage() {
               apiBase={API_BASE}
             />
           </Suspense>
+
+          {isGestionnairePortal && (
+            <Suspense fallback={<InlineFeedback message="Chargement reporting operationnel..." />}>
+              <PortalReportingContent
+                slug={slug}
+                agenceWorkspace={agenceWorkspace}
+                gestionnaireTickets={gestionnaireTickets}
+              />
+            </Suspense>
+          )}
 
           {isAdminPortal && Array.isArray(adminOverview.byAgence) && adminOverview.byAgence.length > 0 && (
             <div className="rounded-xl border border-night-600 bg-night-800/30 p-5">
@@ -5473,6 +5707,7 @@ export default function PortalSectionPage() {
   }
 
   return (
+    <>
     <div>
       <h1 className="font-display text-2xl font-bold text-white mb-2">{title}</h1>
       <p className="text-gray-500 text-sm mb-8">
@@ -5496,12 +5731,328 @@ export default function PortalSectionPage() {
           ))}
         </div>
       )}
-      {slug === 'agence' && <InlineFeedback message={agenceFeedback} className="mb-4" />}
+      {isScopedPortal && <InlineFeedback message={agenceFeedback} className="mb-4" />}
       {content || (
         <p className="text-gray-500">
           Section « {section} » — contenu démo à étendre.
         </p>
       )}
     </div>
+
+    {entityEditor ? (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70"
+        onClick={() => setEntityEditor(null)}
+        role="presentation"
+      >
+        <div
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-night-600 bg-night-900 p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+        >
+          <h2 className="text-lg font-semibold text-white mb-4">
+            {entityEditor.kind === 'proprietaire' && 'Modifier le proprietaire'}
+            {entityEditor.kind === 'locataire' && 'Modifier le locataire'}
+            {entityEditor.kind === 'bien' && 'Modifier le bien'}
+            {entityEditor.kind === 'contrat' && 'Modifier le contrat (bail)'}
+            {entityEditor.kind === 'edl' && "Modifier l'etat des lieux"}
+            {entityEditor.kind === 'caution' && 'Modifier la caution'}
+            {entityEditor.kind === 'gestionnaire' && 'Modifier le gestionnaire'}
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2 text-sm">
+            {entityEditor.kind === 'proprietaire' && (
+              <>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Nom</span>
+                  <input value={entityEditor.draft.nom} onChange={(e) => patchEntityDraft({ nom: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Prenom</span>
+                  <input value={entityEditor.draft.prenom} onChange={(e) => patchEntityDraft({ prenom: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="Actif">Actif</option>
+                    <option value="Suspendu">Suspendu</option>
+                  </select>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Email</span>
+                  <input type="email" value={entityEditor.draft.email} onChange={(e) => patchEntityDraft({ email: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Telephone</span>
+                  <input value={entityEditor.draft.telephone} onChange={(e) => patchEntityDraft({ telephone: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Adresse</span>
+                  <input value={entityEditor.draft.adresse} onChange={(e) => patchEntityDraft({ adresse: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'locataire' && (
+              <>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Nom</span>
+                  <input value={entityEditor.draft.nom} onChange={(e) => patchEntityDraft({ nom: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Prenom</span>
+                  <input value={entityEditor.draft.prenom} onChange={(e) => patchEntityDraft({ prenom: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="Actif">Actif</option>
+                    <option value="Suspendu">Suspendu</option>
+                  </select>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Email</span>
+                  <input type="email" value={entityEditor.draft.email} onChange={(e) => patchEntityDraft({ email: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Telephone</span>
+                  <input value={entityEditor.draft.telephone} onChange={(e) => patchEntityDraft({ telephone: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Adresse</span>
+                  <input value={entityEditor.draft.adresse} onChange={(e) => patchEntityDraft({ adresse: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Profession</span>
+                  <input value={entityEditor.draft.profession} onChange={(e) => patchEntityDraft({ profession: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Revenu mensuel</span>
+                  <input type="number" min="0" value={entityEditor.draft.revenuMensuel} onChange={(e) => patchEntityDraft({ revenuMensuel: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'bien' && (
+              <>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Titre</span>
+                  <input value={entityEditor.draft.titre} onChange={(e) => patchEntityDraft({ titre: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Type</span>
+                  <input value={entityEditor.draft.type} onChange={(e) => patchEntityDraft({ type: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="disponible">Disponible</option>
+                    <option value="loue">Loue</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Adresse</span>
+                  <input value={entityEditor.draft.adresse} onChange={(e) => patchEntityDraft({ adresse: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Proprietaire</span>
+                  <select value={entityEditor.draft.proprietaireId} onChange={(e) => patchEntityDraft({ proprietaireId: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    {gestionnaireProprietaires.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nom}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Locataire</span>
+                  <select value={entityEditor.draft.locataireId || ''} onChange={(e) => patchEntityDraft({ locataireId: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="">(aucun)</option>
+                    {gestionnaireLocataires.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nom}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Loyer mensuel (GNF)</span>
+                  <input type="number" min="0" value={entityEditor.draft.loyerMensuel} onChange={(e) => patchEntityDraft({ loyerMensuel: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Charges mensuelles</span>
+                  <input type="number" min="0" value={entityEditor.draft.chargesMensuelles} onChange={(e) => patchEntityDraft({ chargesMensuelles: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2 flex items-center gap-2 mt-2">
+                  <input type="checkbox" checked={Boolean(entityEditor.draft.published)} onChange={(e) => patchEntityDraft({ published: e.target.checked })} />
+                  <span className="text-gray-400">Publie sur le site</span>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Description</span>
+                  <textarea rows={2} value={entityEditor.draft.description} onChange={(e) => patchEntityDraft({ description: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'contrat' && (
+              <>
+                <label>
+                  <span className="text-gray-400">Date debut</span>
+                  <input type="date" value={entityEditor.draft.dateDebut} onChange={(e) => patchEntityDraft({ dateDebut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Date fin</span>
+                  <input type="date" value={entityEditor.draft.dateFin} onChange={(e) => patchEntityDraft({ dateFin: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <input value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Loyer mensuel (GNF)</span>
+                  <input type="number" min="0" value={entityEditor.draft.loyerMensuel} onChange={(e) => patchEntityDraft({ loyerMensuel: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Charges mensuelles</span>
+                  <input type="number" min="0" value={entityEditor.draft.chargesMensuelles} onChange={(e) => patchEntityDraft({ chargesMensuelles: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Depot garantie</span>
+                  <input type="number" min="0" value={entityEditor.draft.depotGarantie} onChange={(e) => patchEntityDraft({ depotGarantie: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Modalite paiement</span>
+                  <select value={entityEditor.draft.modalitePaiement} onChange={(e) => patchEntityDraft({ modalitePaiement: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="virement">Virement</option>
+                    <option value="cash">Especes</option>
+                    <option value="mobile-money">Mobile money</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Jour echeance</span>
+                  <input type="number" min="1" max="28" value={entityEditor.draft.jourEcheance} onChange={(e) => patchEntityDraft({ jourEcheance: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2 flex items-center gap-2">
+                  <input type="checkbox" checked={Boolean(entityEditor.draft.indexationLoyer)} onChange={(e) => patchEntityDraft({ indexationLoyer: e.target.checked })} />
+                  <span className="text-gray-400">Indexation loyer</span>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Penalite retard</span>
+                  <input value={entityEditor.draft.penaliteRetard} onChange={(e) => patchEntityDraft({ penaliteRetard: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Conditions resiliation</span>
+                  <textarea rows={2} value={entityEditor.draft.conditionsResiliation} onChange={(e) => patchEntityDraft({ conditionsResiliation: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Clauses particulieres</span>
+                  <textarea rows={2} value={entityEditor.draft.clausesParticulieres} onChange={(e) => patchEntityDraft({ clausesParticulieres: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'edl' && (
+              <>
+                <label>
+                  <span className="text-gray-400">Type</span>
+                  <select value={entityEditor.draft.type} onChange={(e) => patchEntityDraft({ type: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="entree">Entree</option>
+                    <option value="sortie">Sortie</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="brouillon">Brouillon</option>
+                    <option value="finalise">Finalise</option>
+                    <option value="signe">Signe</option>
+                  </select>
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">URL PDF (optionnel)</span>
+                  <input value={entityEditor.draft.pdfUrl} onChange={(e) => patchEntityDraft({ pdfUrl: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Observations</span>
+                  <textarea rows={4} value={entityEditor.draft.observations} onChange={(e) => patchEntityDraft({ observations: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'caution' && (
+              <>
+                <label>
+                  <span className="text-gray-400">Montant encaisse (GNF)</span>
+                  <input type="number" min="0" value={entityEditor.draft.montantEncaisse} onChange={(e) => patchEntityDraft({ montantEncaisse: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="detenu">Detenu</option>
+                    <option value="restitue_partiel">Restitue partiellement</option>
+                    <option value="clos">Clos</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Date restitution</span>
+                  <input type="date" value={entityEditor.draft.dateRestitution} onChange={(e) => patchEntityDraft({ dateRestitution: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Montant restitue</span>
+                  <input type="number" min="0" value={entityEditor.draft.montantRestitue} onChange={(e) => patchEntityDraft({ montantRestitue: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Notes</span>
+                  <textarea rows={3} value={entityEditor.draft.notes} onChange={(e) => patchEntityDraft({ notes: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+              </>
+            )}
+            {entityEditor.kind === 'gestionnaire' && (
+              <>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Nom</span>
+                  <input value={entityEditor.draft.nom} onChange={(e) => patchEntityDraft({ nom: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label className="md:col-span-2">
+                  <span className="text-gray-400">Email</span>
+                  <input type="email" value={entityEditor.draft.email} onChange={(e) => patchEntityDraft({ email: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Telephone</span>
+                  <input value={entityEditor.draft.telephone} onChange={(e) => patchEntityDraft({ telephone: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Poste</span>
+                  <input value={entityEditor.draft.poste} onChange={(e) => patchEntityDraft({ poste: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200" />
+                </label>
+                <label>
+                  <span className="text-gray-400">Statut acces</span>
+                  <select value={entityEditor.draft.statut} onChange={(e) => patchEntityDraft({ statut: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="Actif">Actif</option>
+                    <option value="Suspendu">Suspendu</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="text-gray-400">Role interne</span>
+                  <select value={entityEditor.draft.internalRole} onChange={(e) => patchEntityDraft({ internalRole: e.target.value })} className="mt-1 w-full rounded-lg border border-night-600 bg-night-950 px-3 py-2 text-gray-200">
+                    <option value="directeur_agence">Directeur agence</option>
+                    <option value="gestionnaire_agence">Gestionnaire agence</option>
+                    <option value="gestionnaire_finance">Gestionnaire finance</option>
+                    <option value="gestionnaire_support">Gestionnaire support</option>
+                    <option value="lecture_seule">Lecture seule</option>
+                  </select>
+                </label>
+              </>
+            )}
+          </div>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => setEntityEditor(null)} className="rounded-lg border border-night-500 px-4 py-2 text-sm text-gray-300">
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={saveEntityEditor}
+              disabled={!can('update') || gestionnaireSubmitting}
+              className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-night-900 disabled:opacity-50"
+            >
+              {gestionnaireSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   )
 }
